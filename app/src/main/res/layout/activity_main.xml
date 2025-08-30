@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Seleccionar Destinatario:"
+        android:textSize="16sp"
+        android:layout_marginBottom="8dp" />
+
+    <Spinner
+        android:id="@+id/recipientSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp" />
+
+    <EditText
+        android:id="@+id/messageCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Ingrese número de mensajes"
+        android:inputType="number" />
+
+    <Button
+        android:id="@+id/sendButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Enviar SMS"
+        android:layout_marginTop="16dp" />
+
+    <Button
+        android:id="@+id/checkBalanceButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Consultar Saldo"
+        android:layout_marginTop="24dp" />
+
+    <TextView
+        android:id="@+id/balanceTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textSize="16sp"
+        android:hint="Su saldo aparecerá aquí" />
+
+    <CheckBox
+        android:id="@+id/reminderCheckbox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Recordarme donar saldo el último día de cada mes"
+        android:layout_marginTop="24dp" />
+
+    <TextView
+        android:id="@+id/donationAmountTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="18sp"
+        android:padding="8dp"
+        android:textColor="@android:color/black"/>
+
+
+</LinearLayout>
