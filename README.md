@@ -1,4 +1,4 @@
-# Donador Automático
+# Donador Automático [![Android CI](https://github.com/cyberplant/donador_automatico/actions/workflows/android.yml/badge.svg)](https://github.com/cyberplant/donador_automatico/actions/workflows/android.yml)
 
 Una aplicación Android que facilita la donación automática de saldo telefónico a organizaciones benéficas, específicamente a "Animales Sin Hogar" a través del envío programado de SMS.
 
