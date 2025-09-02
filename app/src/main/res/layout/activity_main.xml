@@ -25,6 +25,32 @@
         android:hint="Ingrese número de mensajes"
         android:inputType="number" />
 
+    <EditText
+        android:id="@+id/delayInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Delay entre mensajes (segundos)"
+        android:inputType="number"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/progressTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="14sp"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:visibility="gone" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/sendButton"
         android:layout_width="wrap_content"
@@ -61,7 +87,15 @@
         android:text=""
         android:textSize="18sp"
         android:padding="8dp"
-        android:textColor="@android:color/black"/>
+        android:textColor="@android:color/black"
+        android:layout_marginTop="16dp"/>
 
+    <Button
+        android:id="@+id/clearButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Limpiar Todo"
+        android:layout_marginTop="24dp"
+        android:backgroundTint="@android:color/holo_red_light" />
 
 </LinearLayout>
