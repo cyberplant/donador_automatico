@@ -40,7 +40,6 @@ jobs:
         else
           echo "No keystore secret found, skipping release APK build"
         fi
-      if: env.SIGNING_KEY_ALIAS != null
 
     - name: Build debug APK
       run: ./gradlew assembleDebug
