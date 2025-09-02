@@ -29,6 +29,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import java.util.Calendar
+import kotlinx.coroutines.*
+import android.widget.ProgressBar
 
 class MainActivity : AppCompatActivity() {
 
@@ -47,12 +49,23 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var smsReceiver: SmsReceiver
     private lateinit var donationAmountTextView: TextView
+    private lateinit var delayInput: EditText
+    private lateinit var clearButton: Button
+    private lateinit var progressTextView: TextView
+    private lateinit var progressBar: ProgressBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         donationAmountTextView = findViewById(R.id.donationAmountTextView)
+        delayInput = findViewById(R.id.delayInput)
+        clearButton = findViewById(R.id.clearButton)
+        progressTextView = findViewById(R.id.progressTextView)
+        progressBar = findViewById(R.id.progressBar)
+
+        // Set default delay value to 5 seconds
+        delayInput.setText("5")
 
         // Initialize shared preferences
         sharedPreferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
@@ -95,6 +108,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        clearButton.setOnClickListener {
+            clearEverything()
+        }
+
         reminderCheckbox.setOnCheckedChangeListener { _, isChecked ->
             // Save checkbox state
             sharedPreferences.edit().putBoolean(REMINDER_ENABLED_KEY, isChecked).apply()
@@ -123,8 +140,8 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize the donation amount from SharedPreferences
         val sharedPreferences = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
-        val currentCount = sharedPreferences.getInt("response_count", 0)
-        updateDonationUI(currentCount)
+        val currentAmount = sharedPreferences.getInt("donation_amount", 0)
+        updateDonationUI(currentAmount)
     }
 
     override fun onDestroy() {
@@ -163,18 +180,125 @@ class MainActivity : AppCompatActivity() {
     private fun sendSMS(countStr: String) {
         try {
             val count = countStr.toInt()
+            val delaySeconds = delayInput.text.toString().toIntOrNull() ?: 5 // Default to 5 seconds
 
             // Get the selected recipient
             val selectedRecipientName = recipientSpinner.selectedItem.toString()
             val recipientNumber = recipients[selectedRecipientName]
 
-            val smsManager = SmsManager.getDefault()
-            repeat(count) {
-                smsManager.sendTextMessage(recipientNumber, null, "Hola desde $selectedRecipientName!", null, null)
+            if (delaySeconds > 0) {
+                // Send messages with delay
+                sendSMSWithDelay(count, recipientNumber, selectedRecipientName, delaySeconds)
+            } else {
+                // Send messages immediately
+                sendSMSImmediate(count, recipientNumber, selectedRecipientName)
             }
-            Toast.makeText(this, "$count mensajes enviados a $selectedRecipientName!", Toast.LENGTH_SHORT).show()
         } catch (e: NumberFormatException) {
             Toast.makeText(this, "Por favor ingrese un número válido", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun sendSMSImmediate(count: Int, recipientNumber: String?, recipientName: String) {
+        // Show progress UI
+        showProgressUI(true)
+        progressBar.max = count
+        progressBar.progress = 0
+        
+        CoroutineScope(Dispatchers.Main).launch {
+            val smsManager = SmsManager.getDefault()
+            var sentCount = 0
+            
+            repeat(count) { index ->
+                try {
+                    smsManager.sendTextMessage(recipientNumber, null, "Hola desde $recipientName!", null, null)
+                    sentCount++
+                    
+                    // Update progress UI
+                    progressBar.progress = sentCount
+                    progressTextView.text = "Enviando mensaje ${sentCount}/$count..."
+                    
+                    // Small delay to show progress even for immediate sending
+                    delay(200)
+                } catch (e: Exception) {
+                    progressTextView.text = "Error enviando mensaje ${index + 1}: ${e.message}"
+                    Toast.makeText(this@MainActivity, "Error enviando mensaje ${index + 1}: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+            
+            // Hide progress UI and show completion message
+            showProgressUI(false)
+            Toast.makeText(this@MainActivity, "$count mensajes enviados a $recipientName!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun sendSMSWithDelay(count: Int, recipientNumber: String?, recipientName: String, delaySeconds: Int) {
+        // Show progress UI
+        showProgressUI(true)
+        progressBar.max = count
+        progressBar.progress = 0
+        
+        CoroutineScope(Dispatchers.Main).launch {
+            val smsManager = SmsManager.getDefault()
+            var sentCount = 0
+            
+            repeat(count) { index ->
+                try {
+                    smsManager.sendTextMessage(recipientNumber, null, "Hola desde $recipientName!", null, null)
+                    sentCount++
+                    
+                    // Update progress UI
+                    progressBar.progress = sentCount
+                    progressTextView.text = "Enviando mensaje ${sentCount}/$count..."
+                    
+                    // Wait for delay (except for the last message)
+                    if (index < count - 1) {
+                        delay(delaySeconds * 1000L)
+                    }
+                } catch (e: Exception) {
+                    progressTextView.text = "Error enviando mensaje ${index + 1}: ${e.message}"
+                    Toast.makeText(this@MainActivity, "Error enviando mensaje ${index + 1}: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+            
+            // Hide progress UI and show completion message
+            showProgressUI(false)
+            Toast.makeText(this@MainActivity, "$count mensajes enviados a $recipientName con delay de ${delaySeconds}s!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun clearEverything() {
+        // Clear donation amount
+        val sharedPreferences = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
+        sharedPreferences.edit().putInt("donation_amount", 0).apply()
+        sharedPreferences.edit().putInt("response_count", 0).apply()
+        
+        // Clear message count input
+        val messageCountEditText = findViewById<EditText>(R.id.messageCount)
+        messageCountEditText.setText("")
+        
+        // Clear delay input
+        delayInput.setText("")
+        
+        // Clear balance text
+        balanceTextView.text = ""
+        
+        // Update donation UI
+        updateDonationUI(0)
+        
+        // Hide progress UI
+        showProgressUI(false)
+        
+        Toast.makeText(this, "Todo ha sido limpiado", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showProgressUI(show: Boolean) {
+        if (show) {
+            progressTextView.visibility = android.view.View.VISIBLE
+            progressBar.visibility = android.view.View.VISIBLE
+        } else {
+            progressTextView.visibility = android.view.View.GONE
+            progressBar.visibility = android.view.View.GONE
+            progressTextView.text = ""
         }
     }
 
@@ -301,7 +425,15 @@ class MainActivity : AppCompatActivity() {
                             // Update UI with the message
                             updateBalance(message)
                         } else if (sender.contains("24200")) {
-                            incrementResponseCount(context)
+                            // Check if it's a confirmation message
+                            if (message.startsWith("Gracias por colaborar")) {
+                                // Increment donation count by 10
+                                incrementDonationCount(context, 10)
+                                Toast.makeText(context, "¡Donación confirmada! +10 agregado", Toast.LENGTH_SHORT).show()
+                            } else {
+                                // Regular response message
+                                incrementResponseCount(context)
+                            }
                         }
                     }
                 }
@@ -326,9 +458,26 @@ class MainActivity : AppCompatActivity() {
         updateDonationUI(newCount)
     }
 
-    private fun updateDonationUI(count: Int) {
-        val totalDonation = count * 10
-        val donationText = "Cantidad donada: $totalDonation"
+    private fun incrementDonationCount(context: Context, amount: Int) {
+        // Retrieve the current donation amount from SharedPreferences
+        val sharedPreferences = context.getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
+        val currentAmount = sharedPreferences.getInt("donation_amount", 0)
+
+        // Increment the amount
+        val newAmount = currentAmount + amount
+
+        // Save the new amount
+        with(sharedPreferences.edit()) {
+            putInt("donation_amount", newAmount)
+            apply()
+        }
+
+        // Update the UI
+        updateDonationUI(newAmount)
+    }
+
+    private fun updateDonationUI(amount: Int) {
+        val donationText = "Cantidad donada: $amount"
         donationAmountTextView.text = donationText
     }
 
