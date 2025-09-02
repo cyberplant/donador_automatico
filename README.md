@@ -39,7 +39,7 @@ Una aplicación Android que facilita la donación automática de saldo telefóni
 ### Prerrequisitos
 
 1. **Android Studio**: Versión Arctic Fox (2020.3.1) o superior
-2. **JDK**: Versión 11 o superior
+2. **JDK**: Versión 17 (requerido para la compilación)
 3. **Android SDK**: API 24+ (configurado en Android Studio)
 
 ### Pasos de Compilación
@@ -73,6 +73,7 @@ Una aplicación Android que facilita la donación automática de saldo telefóni
 El proyecto utiliza:
 - **Lenguaje**: Kotlin
 - **Gradle**: DSL Kotlin
+- **JDK**: 17 (requerido)
 - **Compose**: Para la interfaz de usuario moderna
 - **Coroutines**: Para operaciones asíncronas
 - **Target SDK**: API 35 (Android 15)
@@ -123,6 +124,66 @@ El uso de Cursor permitió desarrollar esta aplicación de manera más eficiente
 ## 📄 Licencia
 
 Este proyecto está disponible bajo la Licencia MIT. Consulta el archivo LICENSE para más detalles.
+
+## 📦 Releases y Distribución
+
+### Creando una Release
+
+Cuando estés listo para crear una nueva versión de la aplicación:
+
+1. **Crear un Tag**:
+   ```bash
+   git tag -a v1.0.0 -m "Release version 1.0.0"
+   git push origin v1.0.0
+   ```
+
+2. **Crear Release en GitHub**:
+   - Ve a la pestaña "Releases" en tu repositorio
+   - Haz clic en "Create a new release"
+   - Selecciona el tag que acabas de crear
+   - Agrega un título y descripción de la release
+   - Publica la release
+
+3. **Compilación Automática**:
+   - GitHub Actions automáticamente compilará el APK
+   - Se generarán dos versiones:
+     - `DonadorAutomatico-debug-v1.0.0.apk` (versión de desarrollo)
+     - `DonadorAutomatico-v1.0.0.apk` (versión de producción, si está configurada la firma)
+
+### Configuración de Firma Digital (Opcional)
+
+Para distribuciones de producción, configura la firma digital:
+
+1. **Crear Keystore**:
+   ```bash
+   keytool -genkeypair -v -storetype PKCS12 -keystore keystore.jks -alias mykey -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. **Configurar signing.properties**:
+   ```properties
+   storeFile=../keystore.jks
+   storePassword=tu_password
+   keyAlias=mykey
+   keyPassword=tu_password
+   ```
+
+3. **Configurar Secrets en GitHub** (para CI/CD):
+   - Ve a Settings > Secrets and variables > Actions
+   - Agrega los siguientes secrets:
+     - `SIGNING_KEY_ALIAS`
+     - `SIGNING_KEY_PASSWORD`
+     - `SIGNING_STORE_PASSWORD`
+
+4. **Subir Keystore** (NO commitear al repositorio):
+   - Coloca el archivo `keystore.jks` en el directorio raíz del proyecto
+   - Asegúrate de que `.gitignore` excluya este archivo
+
+### Descarga de APKs
+
+Los usuarios pueden descargar las versiones compiladas desde:
+- La sección "Releases" del repositorio
+- Assets de cada release publicada
+- Enlaces directos generados automáticamente
 
 ## 🤝 Contribuir
 
