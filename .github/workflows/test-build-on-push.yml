@@ -1,4 +1,4 @@
-name: Android CI
+name: Comprobar que funcione el build
 
 on:
   push:
@@ -13,14 +13,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up JDK 17
+    - name: Setup de JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Run tests
-      run: ./gradlew check
+    - name: Corremos tests
+      run: chmod +x gradlew && ./gradlew check
