@@ -30,12 +30,17 @@ android {
 
     signingConfigs {
         create("release") {
-            if (signingPropsFile.exists()) {
-                storeFile = file(signingProps.getProperty("storeFile", "../keystore.jks"))
-                storePassword = signingProps.getProperty("storePassword")
-                keyAlias = signingProps.getProperty("keyAlias")
-                keyPassword = signingProps.getProperty("keyPassword")
-            }
+            // Priorizar variables de entorno (GitHub Secrets) sobre archivo properties
+            val keystorePath = System.getenv("KEYSTORE")?.let { "keystore.jks" }
+                ?: signingProps.getProperty("storeFile", "keystore.jks")
+
+            storeFile = rootProject.file(keystorePath)
+            storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                ?: signingProps.getProperty("storePassword")
+            keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                ?: signingProps.getProperty("keyAlias")
+            keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+                ?: signingProps.getProperty("keyPassword")
         }
     }
 
@@ -46,8 +51,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Use signing config if available
-            if (signingPropsFile.exists()) {
+            // Use signing config if available (environment variables or properties file)
+            if (System.getenv("SIGNING_KEY_ALIAS") != null ||
+                System.getenv("SIGNING_STORE_PASSWORD") != null ||
+                signingPropsFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }

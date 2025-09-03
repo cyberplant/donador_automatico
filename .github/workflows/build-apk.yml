@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    environment: Produccion
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -34,12 +34,14 @@ jobs:
 
     - name: Decode keystore
       run: |
-        if [ ! -z "${{ secrets.KEYSTORE }}" ]; then
-          echo "${{ secrets.KEYSTORE }}" | base64 --decode > ../keystore.jks
+        if [ ! -z "$KEYSTORE" ]; then
+          echo "$KEYSTORE" | base64 --decode > keystore.jks
           echo "Keystore decoded successfully"
         else
-          echo "No keystore secret found, skipping release APK build"
+          echo "Keystore or signing credentials not found, skipping keystore decode"
         fi
+      env:
+        KEYSTORE: ${{ secrets.KEYSTORE }}
 
     - name: Build debug APK
       run: ./gradlew assembleDebug
@@ -47,8 +49,10 @@ jobs:
     - name: Build release APK
       run: ./gradlew assembleRelease
       env:
+        KEYSTORE: ${{ secrets.KEYSTORE }}
         SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-        SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        # PKCS12 stores don't allow different passwords
+        SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
 
     - name: Upload debug APK to release
@@ -60,6 +64,7 @@ jobs:
         asset_path: ./app/build/outputs/apk/debug/app-debug.apk
         asset_name: DonadorAutomatico-debug-v${{ github.event.release.tag_name }}.apk
         asset_content_type: application/vnd.android.package-archive
+      if: github.event.release.upload_url != null
 
     - name: Upload release APK to release
       uses: actions/upload-release-asset@v1
@@ -70,4 +75,4 @@ jobs:
         asset_path: ./app/build/outputs/apk/release/app-release.apk
         asset_name: DonadorAutomatico-v${{ github.event.release.tag_name }}.apk
         asset_content_type: application/vnd.android.package-archive
-      if: env.SIGNING_KEY_ALIAS != null
+      if: github.event.release.upload_url != null
