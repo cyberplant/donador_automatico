@@ -5,6 +5,10 @@ on:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -56,23 +60,23 @@ jobs:
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
 
     - name: Upload debug APK to release
-      uses: actions/upload-release-asset@v1
+      run: |
+        cp ./app/build/outputs/apk/debug/app-debug.apk ./DonadorAutomatico-debug-v${{ github.event.release.tag_name }}.apk
+        gh release upload ${{ github.event.release.tag_name }} \
+          ./DonadorAutomatico-debug-v${{ github.event.release.tag_name }}.apk \
+          --clobber \
+          --repo ${{ github.repository }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./app/build/outputs/apk/debug/app-debug.apk
-        asset_name: DonadorAutomatico-debug-v${{ github.event.release.tag_name }}.apk
-        asset_content_type: application/vnd.android.package-archive
-      if: github.event.release.upload_url != null
+      if: github.event.release.tag_name != null
 
     - name: Upload release APK to release
-      uses: actions/upload-release-asset@v1
+      run: |
+        cp ./app/build/outputs/apk/release/app-release.apk ./DonadorAutomatico-v${{ github.event.release.tag_name }}.apk
+        gh release upload ${{ github.event.release.tag_name }} \
+          ./DonadorAutomatico-v${{ github.event.release.tag_name }}.apk \
+          --clobber \
+          --repo ${{ github.repository }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./app/build/outputs/apk/release/app-release.apk
-        asset_name: DonadorAutomatico-v${{ github.event.release.tag_name }}.apk
-        asset_content_type: application/vnd.android.package-archive
-      if: github.event.release.upload_url != null
+      if: github.event.release.tag_name != null
