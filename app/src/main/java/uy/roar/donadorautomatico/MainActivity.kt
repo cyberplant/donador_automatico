@@ -40,6 +40,9 @@ class MainActivity : AppCompatActivity() {
     private val PREF_NAME = "SmsSenderPrefs"
     private val REMINDER_ENABLED_KEY = "reminder_enabled"
     private val BALANCE_NUMBER = "226"
+    private val LAST_MONTH_KEY = "last_month"
+    private val SENT_MESSAGES_KEY = "sent_messages"
+    private val CONFIRMED_MESSAGES_KEY = "confirmed_messages"
 
     // Map to store recipient name and phone number
     private val recipients = mapOf("Animales Sin Hogar" to "24200")
@@ -53,6 +56,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var clearButton: Button
     private lateinit var progressTextView: TextView
     private lateinit var progressBar: ProgressBar
+    private lateinit var sentMessagesTextView: TextView
+    private lateinit var pendingConfirmationsTextView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,12 +68,17 @@ class MainActivity : AppCompatActivity() {
         clearButton = findViewById(R.id.clearButton)
         progressTextView = findViewById(R.id.progressTextView)
         progressBar = findViewById(R.id.progressBar)
+        sentMessagesTextView = findViewById(R.id.sentMessagesTextView)
+        pendingConfirmationsTextView = findViewById(R.id.pendingConfirmationsTextView)
 
         // Set default delay value to 5 seconds
         delayInput.setText("5")
 
         // Initialize shared preferences
         sharedPreferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
+
+        // Check for month change and ask user if they want to reset counters
+        checkMonthChange()
 
         // Create notification channel for Android 8.0+
         createNotificationChannel()
@@ -142,12 +152,56 @@ class MainActivity : AppCompatActivity() {
         val sharedPreferences = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
         val currentAmount = sharedPreferences.getInt("donation_amount", 0)
         updateDonationUI(currentAmount)
+        
+        // Update sent messages and confirmations counters
+        updateCountersUI()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         // Unregister receiver when activity is destroyed
         unregisterReceiver(smsReceiver)
+    }
+
+    private fun checkMonthChange() {
+        val calendar = Calendar.getInstance()
+        val currentMonth = calendar.get(Calendar.MONTH)
+        val currentYear = calendar.get(Calendar.YEAR)
+        val currentMonthYear = currentYear * 12 + currentMonth
+        
+        val lastMonthYear = sharedPreferences.getInt(LAST_MONTH_KEY, currentMonthYear)
+        
+        if (lastMonthYear < currentMonthYear) {
+            // Month has changed, ask user if they want to reset counters
+            val dialog = android.app.AlertDialog.Builder(this)
+            dialog.setTitle("Nuevo mes detectado")
+            dialog.setMessage("El mes ha cambiado desde su última donación, ¿desea reiniciar los contadores?")
+            dialog.setPositiveButton("Sí") { _, _ ->
+                resetCounters()
+                sharedPreferences.edit().putInt(LAST_MONTH_KEY, currentMonthYear).apply()
+            }
+            dialog.setNegativeButton("No") { _, _ ->
+                sharedPreferences.edit().putInt(LAST_MONTH_KEY, currentMonthYear).apply()
+            }
+            dialog.show()
+        } else {
+            // Save current month if not set
+            sharedPreferences.edit().putInt(LAST_MONTH_KEY, currentMonthYear).apply()
+        }
+    }
+    
+    private fun resetCounters() {
+        val donationPrefs = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
+        donationPrefs.edit().apply {
+            putInt("donation_amount", 0)
+            putInt("response_count", 0)
+            putInt(SENT_MESSAGES_KEY, 0)
+            putInt(CONFIRMED_MESSAGES_KEY, 0)
+            apply()
+        }
+        updateDonationUI(0)
+        updateCountersUI()
+        Toast.makeText(this, "Contadores reiniciados", Toast.LENGTH_SHORT).show()
     }
 
     private fun checkAndRequestPermissions(): Boolean {
@@ -210,8 +264,13 @@ class MainActivity : AppCompatActivity() {
             
             repeat(count) { index ->
                 try {
-                    smsManager.sendTextMessage(recipientNumber, null, "Hola desde $recipientName!", null, null)
+                    val messageNumber = index + 1
+                    val messageContent = "Donacion $messageNumber/$count"
+                    smsManager.sendTextMessage(recipientNumber, null, messageContent, null, null)
                     sentCount++
+                    
+                    // Increment sent messages counter
+                    incrementSentMessagesCounter()
                     
                     // Update progress UI
                     progressBar.progress = sentCount
@@ -243,8 +302,13 @@ class MainActivity : AppCompatActivity() {
             
             repeat(count) { index ->
                 try {
-                    smsManager.sendTextMessage(recipientNumber, null, "Hola desde $recipientName!", null, null)
+                    val messageNumber = index + 1
+                    val messageContent = "Donacion $messageNumber/$count"
+                    smsManager.sendTextMessage(recipientNumber, null, messageContent, null, null)
                     sentCount++
+                    
+                    // Increment sent messages counter
+                    incrementSentMessagesCounter()
                     
                     // Update progress UI
                     progressBar.progress = sentCount
@@ -267,28 +331,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun clearEverything() {
-        // Clear donation amount
-        val sharedPreferences = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
-        sharedPreferences.edit().putInt("donation_amount", 0).apply()
-        sharedPreferences.edit().putInt("response_count", 0).apply()
-        
-        // Clear message count input
-        val messageCountEditText = findViewById<EditText>(R.id.messageCount)
-        messageCountEditText.setText("")
-        
-        // Clear delay input
-        delayInput.setText("")
-        
-        // Clear balance text
-        balanceTextView.text = ""
-        
-        // Update donation UI
-        updateDonationUI(0)
-        
-        // Hide progress UI
-        showProgressUI(false)
-        
-        Toast.makeText(this, "Todo ha sido limpiado", Toast.LENGTH_SHORT).show()
+        // Show confirmation dialog
+        val dialog = android.app.AlertDialog.Builder(this)
+        dialog.setTitle("Confirmar")
+        dialog.setMessage("¿Está seguro que desea limpiar todos los datos?")
+        dialog.setPositiveButton("Sí") { _, _ ->
+            // Clear donation amount
+            val sharedPreferences = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
+            sharedPreferences.edit().apply {
+                putInt("donation_amount", 0)
+                putInt("response_count", 0)
+                putInt(SENT_MESSAGES_KEY, 0)
+                putInt(CONFIRMED_MESSAGES_KEY, 0)
+                apply()
+            }
+            
+            // Clear message count input
+            val messageCountEditText = findViewById<EditText>(R.id.messageCount)
+            messageCountEditText.setText("")
+            
+            // Clear delay input
+            delayInput.setText("")
+            
+            // Clear balance text
+            balanceTextView.text = ""
+            
+            // Update donation UI
+            updateDonationUI(0)
+            updateCountersUI()
+            
+            // Hide progress UI
+            showProgressUI(false)
+            
+            Toast.makeText(this, "Todo ha sido limpiado", Toast.LENGTH_SHORT).show()
+        }
+        dialog.setNegativeButton("No", null)
+        dialog.show()
     }
 
     private fun showProgressUI(show: Boolean) {
@@ -429,6 +507,8 @@ class MainActivity : AppCompatActivity() {
                             if (message.startsWith("Gracias por colaborar")) {
                                 // Increment donation count by 10
                                 incrementDonationCount(context, 10)
+                                // Increment confirmed messages counter
+                                incrementConfirmedMessagesCounter()
                                 Toast.makeText(context, "¡Donación confirmada! +10 agregado", Toast.LENGTH_SHORT).show()
                             } else {
                                 // Regular response message
@@ -479,6 +559,32 @@ class MainActivity : AppCompatActivity() {
     private fun updateDonationUI(amount: Int) {
         val donationText = "Cantidad donada: $amount"
         donationAmountTextView.text = donationText
+    }
+    
+    private fun incrementSentMessagesCounter() {
+        val donationPrefs = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
+        val currentCount = donationPrefs.getInt(SENT_MESSAGES_KEY, 0)
+        val newCount = currentCount + 1
+        donationPrefs.edit().putInt(SENT_MESSAGES_KEY, newCount).apply()
+        updateCountersUI()
+    }
+    
+    private fun incrementConfirmedMessagesCounter() {
+        val donationPrefs = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
+        val currentCount = donationPrefs.getInt(CONFIRMED_MESSAGES_KEY, 0)
+        val newCount = currentCount + 1
+        donationPrefs.edit().putInt(CONFIRMED_MESSAGES_KEY, newCount).apply()
+        updateCountersUI()
+    }
+    
+    private fun updateCountersUI() {
+        val donationPrefs = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
+        val sentCount = donationPrefs.getInt(SENT_MESSAGES_KEY, 0)
+        val confirmedCount = donationPrefs.getInt(CONFIRMED_MESSAGES_KEY, 0)
+        val pendingCount = sentCount - confirmedCount
+        
+        sentMessagesTextView.text = "Mensajes enviados: $sentCount"
+        pendingConfirmationsTextView.text = "Confirmaciones pendientes: $pendingCount"
     }
 
     private fun updateBalance(message: String) {

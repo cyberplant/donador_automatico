@@ -1,9 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/gradient_background">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Donador Automático"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="@android:color/white"
+        android:padding="16dp"
+        android:layout_marginBottom="16dp" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -24,6 +40,15 @@
         android:layout_height="wrap_content"
         android:hint="Ingrese número de mensajes"
         android:inputType="number" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="⚠️ Antel permite máximo 50 mensajes por día"
+        android:textSize="12sp"
+        android:textColor="@android:color/holo_orange_dark"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="8dp" />
 
     <EditText
         android:id="@+id/delayInput"
@@ -90,6 +115,26 @@
         android:textColor="@android:color/black"
         android:layout_marginTop="16dp"/>
 
+    <TextView
+        android:id="@+id/sentMessagesTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Mensajes enviados: 0"
+        android:textSize="16sp"
+        android:padding="8dp"
+        android:textColor="@android:color/black"
+        android:layout_marginTop="8dp"/>
+
+    <TextView
+        android:id="@+id/pendingConfirmationsTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Confirmaciones pendientes: 0"
+        android:textSize="16sp"
+        android:padding="8dp"
+        android:textColor="@android:color/black"
+        android:layout_marginTop="8dp"/>
+
     <Button
         android:id="@+id/clearButton"
         android:layout_width="match_parent"
@@ -99,3 +144,4 @@
         android:backgroundTint="@android:color/holo_red_light" />
 
 </LinearLayout>
+</ScrollView>
