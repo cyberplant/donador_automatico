@@ -67,19 +67,21 @@ El workflow `test-build-on-push.yml` se ejecuta automáticamente en:
 - Manualmente mediante `workflow_dispatch`
 
 **Características:**
-- Ejecuta tests de verificación (`./gradlew check`)
-- Compila un APK debug automáticamente en todos los PRs
+- Ejecuta tests de verificación (`./gradlew check`) automáticamente en cada push y PR
+- Compila APK debug **solo bajo demanda manual** para evitar sobrecarga del CI/CD
 - El APK debug queda disponible como artefacto en la página de Actions por 30 días
 
-**Formas de compilar el APK debug:**
-1. **Automático**: Se compila en cada PR automáticamente
-2. **Manual desde Actions**: Ve a la pestaña "Actions" > selecciona "Build app" > "Run workflow"
-3. **Desde un comentario en PR**: Escribe `/build` en un comentario del PR para compilar
+**Cómo compilar el APK debug:**
+1. Ve a la pestaña "Actions" del repositorio
+2. Selecciona el workflow "Build app" en la barra lateral izquierda
+3. Haz clic en "Run workflow" (botón a la derecha)
+4. Selecciona la rama del PR que quieres compilar
+5. Haz clic en "Run workflow" para iniciar la compilación
 
 **Para descargar el APK de prueba:**
-1. Ve a la pestaña "Actions" del repositorio
-2. Selecciona el workflow run correspondiente a tu PR
-3. Descarga el artefacto `DonadorAutomatico-debug-{commit-hash}`
+1. Espera a que termine la compilación
+2. Ve al workflow run que acabas de ejecutar
+3. Descarga el artefacto `DonadorAutomatico-debug-{commit-hash}` en la sección "Artifacts"
 
 ### Compilación de Producción en Releases
 
@@ -154,9 +156,9 @@ Las contribuciones son bienvenidas. Por favor:
 4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
 5. Abre un Pull Request
 6. **Para probar cambios**: 
-   - El APK se compila automáticamente en cada PR
-   - O comenta `/build` en el PR para forzar una nueva compilación
-   - Descarga el artefacto desde la pestaña Actions
+   - Ve a Actions > "Build app" > "Run workflow"
+   - Selecciona la rama de tu PR
+   - Descarga el artefacto cuando termine la compilación
 
 ## 🤖 Desarrollo con IA
 
