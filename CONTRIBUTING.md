@@ -68,8 +68,13 @@ El workflow `test-build-on-push.yml` se ejecuta automáticamente en:
 
 **Características:**
 - Ejecuta tests de verificación (`./gradlew check`)
-- Compila un APK debug cuando se ejecuta manualmente o en PRs
+- Compila un APK debug automáticamente en todos los PRs
 - El APK debug queda disponible como artefacto en la página de Actions por 30 días
+
+**Formas de compilar el APK debug:**
+1. **Automático**: Se compila en cada PR automáticamente
+2. **Manual desde Actions**: Ve a la pestaña "Actions" > selecciona "Build app" > "Run workflow"
+3. **Desde un comentario en PR**: Escribe `/build` en un comentario del PR para compilar
 
 **Para descargar el APK de prueba:**
 1. Ve a la pestaña "Actions" del repositorio
@@ -148,7 +153,10 @@ Las contribuciones son bienvenidas. Por favor:
 3. Commit tus cambios (`git commit -am 'Agrega nueva funcionalidad'`)
 4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
 5. Abre un Pull Request
-6. **Para probar cambios**: Ejecuta manualmente el workflow "Comprobar que funcione el build" desde la pestaña Actions para generar un APK de prueba
+6. **Para probar cambios**: 
+   - El APK se compila automáticamente en cada PR
+   - O comenta `/build` en el PR para forzar una nueva compilación
+   - Descarga el artefacto desde la pestaña Actions
 
 ## 🤖 Desarrollo con IA
 
