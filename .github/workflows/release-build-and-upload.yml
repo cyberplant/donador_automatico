@@ -48,20 +48,6 @@ jobs:
       env:
         KEYSTORE: ${{ secrets.KEYSTORE }}
 
-    - name: Compilamos debug APK
-      run: ./gradlew assembleDebug
-
-    - name: Subimos APK debug al Github release
-      run: |
-        cp ./app/build/outputs/apk/debug/app-debug.apk ./DonadorAutomatico-debug-${{ github.event.release.tag_name }}.apk
-        gh release upload ${{ github.event.release.tag_name }} \
-          ./DonadorAutomatico-debug-${{ github.event.release.tag_name }}.apk \
-          --clobber \
-          --repo ${{ github.repository }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      if: github.event.release.tag_name != null
-
     - name: Compilamos release APK
       run: ./gradlew assembleRelease
       env:
@@ -71,7 +57,7 @@ jobs:
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
 
-    - name: Subimos APK de release al Github release
+    - name: Subimos APK de produccion al Github release
       run: |
         cp ./app/build/outputs/apk/release/app-release.apk ./DonadorAutomatico-${{ github.event.release.tag_name }}.apk
         gh release upload ${{ github.event.release.tag_name }} \
