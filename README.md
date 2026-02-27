@@ -2,7 +2,15 @@
 
 Una aplicación Android que facilita la donación automática de saldo telefónico a organizaciones benéficas, específicamente a "Animales Sin Hogar" a través del envío programado de SMS.
 
-## 📱 Funcionalidades
+## � Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/main_screen.png" width="250" alt="Pantalla principal"/>
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/screenshots/balance_and_reminders.png" width="250" alt="Saldo y recordatorios"/>
+</p>
+
+## �📱 Funcionalidades
 
 ### 💰 Consulta de Saldo
 - Consulta automática del saldo disponible enviando "SALDO" al número 226
