@@ -194,22 +194,22 @@ class MainActivity : AppCompatActivity() {
         // Setup reminder checkbox listeners
         reminder4DaysCheckbox.setOnCheckedChangeListener { _, isChecked ->
             sharedPreferences.edit().putBoolean(REMINDER_4_DAYS_KEY, isChecked).apply()
-            updateReminders()
+            updateReminders(showToast = true)
         }
         
         reminder3DaysCheckbox.setOnCheckedChangeListener { _, isChecked ->
             sharedPreferences.edit().putBoolean(REMINDER_3_DAYS_KEY, isChecked).apply()
-            updateReminders()
+            updateReminders(showToast = true)
         }
         
         reminderPenultimateCheckbox.setOnCheckedChangeListener { _, isChecked ->
             sharedPreferences.edit().putBoolean(REMINDER_PENULTIMATE_KEY, isChecked).apply()
-            updateReminders()
+            updateReminders(showToast = true)
         }
         
         reminderLastDayCheckbox.setOnCheckedChangeListener { _, isChecked ->
             sharedPreferences.edit().putBoolean(REMINDER_LAST_DAY_KEY, isChecked).apply()
-            updateReminders()
+            updateReminders(showToast = true)
         }
         
         // Schedule reminders based on saved preferences
@@ -498,7 +498,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateReminders() {
+    private fun updateReminders(showToast: Boolean = false) {
         val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
         
         // Cancel all existing reminders first
@@ -529,7 +529,7 @@ class MainActivity : AppCompatActivity() {
         }
         
         val anyEnabled = reminder4Days || reminder3Days || reminderPenultimate || reminderLastDay
-        if (anyEnabled) {
+        if (showToast && anyEnabled) {
             Toast.makeText(this, "Recordatorios actualizados", Toast.LENGTH_SHORT).show()
         }
     }
