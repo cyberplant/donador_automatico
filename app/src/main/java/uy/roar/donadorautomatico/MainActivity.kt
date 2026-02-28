@@ -339,6 +339,7 @@ class MainActivity : AppCompatActivity() {
                 // Increment BEFORE send attempt - counts as "attempted"
                 sentThisSession++
                 updatePendingConfirmations()
+                refreshDonationStats()
                 
                 try {
                     smsManager.sendTextMessage(recipientNumber, null, messageContent, null, null)
@@ -379,6 +380,7 @@ class MainActivity : AppCompatActivity() {
                 // Increment BEFORE send attempt - counts as "attempted"
                 sentThisSession++
                 updatePendingConfirmations()
+                refreshDonationStats()
                 
                 try {
                     smsManager.sendTextMessage(recipientNumber, null, messageContent, null, null)
@@ -717,15 +719,17 @@ class MainActivity : AppCompatActivity() {
             val lastMonthAmount = database.donationDao().getMonthTotal(lastMonthStart, lastMonthEnd)
             val totalAmount = database.donationDao().getAllTimeTotal()
             
-            // Calculate messages sent today (each message = 10 pesos)
-            val messagesSentToday = todayAmount / 10
+            // Calculate messages confirmed today (each message = 10 pesos)
+            val messagesConfirmedToday = todayAmount / 10
             
             withContext(Dispatchers.Main) {
                 donationAmountTextView.text = "Donado este mes: $monthAmount$"
                 lastMonthDonationTextView.text = "Donado el mes pasado: $lastMonthAmount$"
                 totalDonationTextView.text = "Total histórico: $totalAmount$"
                 todayDonationTextView.text = "Donado hoy: $todayAmount$"
-                sentMessagesTextView.text = "Mensajes enviados hoy: $messagesSentToday"
+                // Show sent this session + confirmed from DB (confirmed are already sent)
+                val totalSentToday = messagesConfirmedToday + sentThisSession - confirmedThisSession
+                sentMessagesTextView.text = "Mensajes enviados hoy: $totalSentToday"
             }
         }
     }
