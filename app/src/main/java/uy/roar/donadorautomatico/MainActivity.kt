@@ -31,7 +31,6 @@ import androidx.core.content.ContextCompat
 import java.util.Calendar
 import kotlinx.coroutines.*
 import android.widget.ProgressBar
-import android.util.Log
 import uy.roar.donadorautomatico.data.DonationDatabase
 import uy.roar.donadorautomatico.data.DonationRecord
 import java.text.SimpleDateFormat
@@ -39,10 +38,6 @@ import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
-    companion object {
-        private const val TAG = "DonadorDebug"
-    }
-    
     private val SMS_PERMISSION_CODE = 100
     private val RECEIVE_SMS_PERMISSION_CODE = 101
     private val NOTIFICATION_PERMISSION_CODE = 102
@@ -270,8 +265,12 @@ class MainActivity : AppCompatActivity() {
             putInt("response_count", 0)
             apply()
         }
+        // Reset session counters
+        sentThisSession = 0
+        confirmedThisSession = 0
         // Note: Database records are historical and not reset
         refreshDonationStats()
+        updatePendingConfirmations()
         Toast.makeText(this, "Contadores reiniciados", Toast.LENGTH_SHORT).show()
     }
 
@@ -305,7 +304,7 @@ class MainActivity : AppCompatActivity() {
     private fun sendSMS(countStr: String) {
         try {
             val count = countStr.toInt()
-            val delaySeconds = delayInput.text.toString().toIntOrNull() ?: 5 // Default to 5 seconds
+            val delaySeconds = delayInput.text.toString().toIntOrNull() ?: DEFAULT_DELAY
 
             // Get the selected recipient
             val selectedRecipientName = recipientSpinner.selectedItem.toString()
@@ -333,21 +332,17 @@ class MainActivity : AppCompatActivity() {
             val smsManager = SmsManager.getDefault()
             var sentCount = 0
             
-            Log.d(TAG, "sendSMSImmediate: Iniciando envío de $count mensajes. sentThisSession actual: $sentThisSession")
-            
             repeat(count) { index ->
                 val messageNumber = index + 1
                 val messageContent = "Donacion $messageNumber/$count"
                 
                 // Increment BEFORE send attempt - counts as "attempted"
                 sentThisSession++
-                Log.d(TAG, "sendSMSImmediate: Mensaje $messageNumber - sentThisSession incrementado a: $sentThisSession")
                 updatePendingConfirmations()
                 
                 try {
                     smsManager.sendTextMessage(recipientNumber, null, messageContent, null, null)
                     sentCount++
-                    Log.d(TAG, "sendSMSImmediate: Mensaje $messageNumber enviado OK")
                     
                     // Update progress UI
                     progressBar.progress = sentCount
@@ -356,13 +351,11 @@ class MainActivity : AppCompatActivity() {
                     // Small delay to show progress even for immediate sending
                     delay(200)
                 } catch (e: Exception) {
-                    Log.e(TAG, "sendSMSImmediate: Error en mensaje $messageNumber: ${e.message}")
                     progressTextView.text = "Error enviando mensaje ${index + 1}: ${e.message}"
                     Toast.makeText(this@MainActivity, "Error enviando mensaje ${index + 1}: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
             
-            Log.d(TAG, "sendSMSImmediate: Finalizado. sentThisSession final: $sentThisSession")
             // Hide progress UI and show completion message
             showProgressUI(false)
             Toast.makeText(this@MainActivity, "$sentCount de $count mensajes enviados a $recipientName!", Toast.LENGTH_SHORT).show()
@@ -379,21 +372,17 @@ class MainActivity : AppCompatActivity() {
             val smsManager = SmsManager.getDefault()
             var sentCount = 0
             
-            Log.d(TAG, "sendSMSWithDelay: Iniciando envío de $count mensajes con delay $delaySeconds. sentThisSession actual: $sentThisSession")
-            
             repeat(count) { index ->
                 val messageNumber = index + 1
                 val messageContent = "Donacion $messageNumber/$count"
                 
                 // Increment BEFORE send attempt - counts as "attempted"
                 sentThisSession++
-                Log.d(TAG, "sendSMSWithDelay: Mensaje $messageNumber - sentThisSession incrementado a: $sentThisSession")
                 updatePendingConfirmations()
                 
                 try {
                     smsManager.sendTextMessage(recipientNumber, null, messageContent, null, null)
                     sentCount++
-                    Log.d(TAG, "sendSMSWithDelay: Mensaje $messageNumber enviado OK")
                     
                     // Update progress UI
                     progressBar.progress = sentCount
@@ -410,7 +399,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             
-            Log.d(TAG, "sendSMSWithDelay: Finalizado. sentThisSession final: $sentThisSession")
             // Hide progress UI and show completion message
             showProgressUI(false)
             Toast.makeText(this@MainActivity, "$sentCount de $count mensajes enviados a $recipientName con delay de ${delaySeconds}s!", Toast.LENGTH_SHORT).show()
@@ -419,7 +407,6 @@ class MainActivity : AppCompatActivity() {
     
     private fun updatePendingConfirmations() {
         val pending = (sentThisSession - confirmedThisSession).coerceAtLeast(0)
-        Log.d(TAG, "updatePendingConfirmations: sentThisSession=$sentThisSession, confirmedThisSession=$confirmedThisSession, pending=$pending")
         pendingConfirmationsTextView.text = "Pendientes de confirmar: $pending"
         // Dynamic color based on value
         val color = when {
@@ -451,6 +438,11 @@ class MainActivity : AppCompatActivity() {
             
             // Clear balance text
             balanceTextView.text = ""
+            
+            // Reset session counters
+            sentThisSession = 0
+            confirmedThisSession = 0
+            updatePendingConfirmations()
             
             // Refresh donation stats from database
             refreshDonationStats()
@@ -657,7 +649,7 @@ class MainActivity : AppCompatActivity() {
                             // Check if it's a confirmation message
                             if (message.startsWith("Gracias por colaborar")) {
                                 // Add donation to database (10 pesos per message)
-                                (context as? MainActivity)?.addDonation(10)
+                                this@MainActivity.addDonation(10)
                                 Toast.makeText(context, "¡Donación confirmada! +10$ agregado", Toast.LENGTH_SHORT).show()
                             } else {
                                 // Regular response message
@@ -688,7 +680,6 @@ class MainActivity : AppCompatActivity() {
         val today = dateFormat.format(Calendar.getInstance().time)
         // Increment session confirmation counter
         confirmedThisSession++
-        Log.d(TAG, "addDonation: Confirmación recibida. confirmedThisSession=$confirmedThisSession")
         updatePendingConfirmations()
         
         CoroutineScope(Dispatchers.IO).launch {
@@ -740,79 +731,75 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun getTodayMessageCount(): Int {
-        val today = dateFormat.format(Calendar.getInstance().time)
-        var count = 0
-        runBlocking {
-            val todayAmount = database.donationDao().getTodayTotal(today)
-            count = todayAmount / 10
-        }
-        return count
-    }
-
     private fun updateBalance(message: String) {
+        // Display the full message immediately
         runOnUiThread {
-            try {
-                // Display the full message
-                balanceTextView.text = message
+            balanceTextView.text = message
+        }
+        
+        // Extract balance and update UI asynchronously
+        if (message.contains("Dispones de:")) {
+            val balanceStr = message.substring(message.indexOf("Dispones de:") + "Dispones de:".length).trim()
+            // Find the first numeric sequence
+            var numericPart = ""
+            for (c in balanceStr) {
+                if (c.isDigit() || c == '.') {
+                    numericPart += c
+                } else if (numericPart.isNotEmpty()) {
+                    break
+                }
+            }
 
-                // Extract the balance amount from the message
-                if (message.contains("Dispones de:")) {
-                    val balanceStr = message.substring(message.indexOf("Dispones de:") + "Dispones de:".length).trim()
-                    // Find the first numeric sequence
-                    var numericPart = ""
-                    for (c in balanceStr) {
-                        if (c.isDigit() || c == '.') {
-                            numericPart += c
-                        } else if (numericPart.isNotEmpty()) {
-                            // Stop once we've found the numeric part and reached a non-numeric character
-                            break
-                        }
-                    }
-
-                    if (numericPart.isNotEmpty()) {
-                        // Parse the numeric part and divide by 10
-                        val balance = numericPart.toDouble()
-                        val calculatedCount = (balance / 10).toInt()
-                        
-                        // Get already sent messages from database and calculate remaining
-                        val alreadySent = getTodayMessageCount()
-                        val remainingAllowed = MAX_MESSAGES - alreadySent
-                        val smsCount = minOf(calculatedCount, remainingAllowed).coerceAtLeast(0)
-                        
-                        // Show warning if exceeded
-                        if (calculatedCount > remainingAllowed && remainingAllowed > 0) {
-                            Toast.makeText(this, "⚠️ Ya enviaste $alreadySent hoy. Podés enviar $remainingAllowed más", Toast.LENGTH_LONG).show()
-                        } else if (remainingAllowed <= 0) {
-                            Toast.makeText(this, "⚠️ Ya alcanzaste el límite de $MAX_MESSAGES mensajes por día", Toast.LENGTH_LONG).show()
-                        }
-
-                        // Set the SMS count in the EditText
-                        messageCountInput.setText(smsCount.toString())
-
-                        // Show balance and calculation separately
-                        val sentInfo = if (alreadySent > 0) "\n📤 Ya enviados hoy: $alreadySent" else ""
-                        val calculationText = when {
-                            remainingAllowed <= 0 -> {
-                                "\n━━━━━━━━━━━━━━━━━━━━\n" +
-                                "📊 Cálculo: $numericPart ÷ 10 = $calculatedCount mensajes$sentInfo\n" +
-                                "⚠️ Límite diario alcanzado"
+            if (numericPart.isNotEmpty()) {
+                val balance = numericPart.toDouble()
+                val calculatedCount = (balance / 10).toInt()
+                val numericPartFinal = numericPart
+                
+                // Get already sent messages from database asynchronously
+                CoroutineScope(Dispatchers.IO).launch {
+                    val today = dateFormat.format(Calendar.getInstance().time)
+                    val todayAmount = database.donationDao().getTodayTotal(today)
+                    val alreadySent = todayAmount / 10
+                    
+                    withContext(Dispatchers.Main) {
+                        try {
+                            val remainingAllowed = MAX_MESSAGES - alreadySent
+                            val smsCount = minOf(calculatedCount, remainingAllowed).coerceAtLeast(0)
+                            
+                            // Show warning if exceeded
+                            if (calculatedCount > remainingAllowed && remainingAllowed > 0) {
+                                Toast.makeText(this@MainActivity, "⚠️ Ya enviaste $alreadySent hoy. Podés enviar $remainingAllowed más", Toast.LENGTH_LONG).show()
+                            } else if (remainingAllowed <= 0) {
+                                Toast.makeText(this@MainActivity, "⚠️ Ya alcanzaste el límite de $MAX_MESSAGES mensajes por día", Toast.LENGTH_LONG).show()
                             }
-                            calculatedCount > remainingAllowed -> {
-                                "\n━━━━━━━━━━━━━━━━━━━━\n" +
-                                "📊 Cálculo: $numericPart ÷ 10 = $calculatedCount mensajes$sentInfo\n" +
-                                "✅ Podés enviar: $smsCount"
+
+                            // Set the SMS count in the EditText
+                            messageCountInput.setText(smsCount.toString())
+
+                            // Show balance and calculation separately
+                            val sentInfo = if (alreadySent > 0) "\n📤 Ya enviados hoy: $alreadySent" else ""
+                            val calculationText = when {
+                                remainingAllowed <= 0 -> {
+                                    "\n━━━━━━━━━━━━━━━━━━━━\n" +
+                                    "📊 Cálculo: $numericPartFinal ÷ 10 = $calculatedCount mensajes$sentInfo\n" +
+                                    "⚠️ Límite diario alcanzado"
+                                }
+                                calculatedCount > remainingAllowed -> {
+                                    "\n━━━━━━━━━━━━━━━━━━━━\n" +
+                                    "📊 Cálculo: $numericPartFinal ÷ 10 = $calculatedCount mensajes$sentInfo\n" +
+                                    "✅ Podés enviar: $smsCount"
+                                }
+                                else -> {
+                                    "\n━━━━━━━━━━━━━━━━━━━━\n" +
+                                    "📊 Cálculo: $numericPartFinal ÷ 10 = $calculatedCount mensajes$sentInfo"
+                                }
                             }
-                            else -> {
-                                "\n━━━━━━━━━━━━━━━━━━━━\n" +
-                                "📊 Cálculo: $numericPart ÷ 10 = $calculatedCount mensajes$sentInfo"
-                            }
+                            balanceTextView.text = message + calculationText
+                        } catch (e: Exception) {
+                            balanceTextView.text = "Error al analizar saldo: ${e.message}"
                         }
-                        balanceTextView.text = message + calculationText
                     }
                 }
-            } catch (e: Exception) {
-                balanceTextView.text = "Error al analizar saldo: ${e.message}"
             }
         }
     }

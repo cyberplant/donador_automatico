@@ -64,13 +64,17 @@ Una aplicación Android que facilita la donación automática de saldo telefóni
 2. **Configurar envío**:
    - Ingresa la cantidad de mensajes (o usa la sugerencia automática)
    - **Importante**: Antel permite máximo 50 mensajes por día
-   - Configura el delay entre mensajes (5 segundos por defecto)
+   - Configura el delay entre mensajes (2 segundos por defecto)
 3. **Enviar**: Presiona "Enviar SMS" y observa el progreso
 4. **Confirmación**: La app detectará automáticamente las confirmaciones de donación
 
 ### Gestión de Recordatorios
-- Marca/desmarca el checkbox "Recordarme donar saldo el último día de cada mes"
-- Las notificaciones se mostrarán a las 10:00 AM del último día del mes
+- Configura hasta 4 recordatorios diferentes:
+  - 4 días antes de fin de mes
+  - 3 días antes de fin de mes
+  - El penúltimo día del mes
+  - El último día del mes
+- Las notificaciones se mostrarán a las 20:00 del día configurado
 
 ### Gestión de Contadores
 - Al inicio de cada mes, la app detectará el cambio y te preguntará si deseas reiniciar los contadores
