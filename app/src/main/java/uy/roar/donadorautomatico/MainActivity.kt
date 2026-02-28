@@ -393,7 +393,6 @@ class MainActivity : AppCompatActivity() {
                         delay(delaySeconds * 1000L)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "sendSMSWithDelay: Error en mensaje $messageNumber: ${e.message}")
                     progressTextView.text = "Error enviando mensaje ${index + 1}: ${e.message}"
                     Toast.makeText(this@MainActivity, "Error enviando mensaje ${index + 1}: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
