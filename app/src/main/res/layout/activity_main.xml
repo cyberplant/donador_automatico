@@ -3,35 +3,250 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:background="@drawable/gradient_background">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Seleccionar Destinatario:"
-        android:textSize="16sp"
-        android:layout_marginBottom="8dp" />
+    <!-- Custom Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#4CAF50"
+        android:gravity="center"
+        android:elevation="4dp">
 
-    <Spinner
-        android:id="@+id/recipientSpinner"
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🐾 Donador Automático"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white" />
+
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="48dp">
+
+    <!-- Recipient Selection Card -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp" />
+        android:orientation="vertical"
+        android:background="@drawable/card_pastel_blue"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp">
 
-    <EditText
-        android:id="@+id/messageCount"
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Seleccionar Destinatario:"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#1565C0"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/recipientSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@android:drawable/btn_dropdown" />
+
+    </LinearLayout>
+
+    <!-- Stats Card - Moved here, below destination -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Ingrese número de mensajes"
-        android:inputType="number" />
+        android:orientation="vertical"
+        android:background="@drawable/card_pastel_green"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp">
 
-    <EditText
-        android:id="@+id/delayInput"
+        <TextView
+            android:id="@+id/donationAmountTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Donado este mes: 0$"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#2E7D32"/>
+
+        <TextView
+            android:id="@+id/lastMonthDonationTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Donado el mes pasado: 0$"
+            android:textSize="14sp"
+            android:textColor="#388E3C"
+            android:layout_marginTop="4dp"/>
+
+        <TextView
+            android:id="@+id/totalDonationTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Total histórico: 0$"
+            android:textSize="14sp"
+            android:textColor="#388E3C"
+            android:layout_marginTop="4dp"/>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#A5D6A7"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/todayDonationTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Donado hoy: 0$"
+            android:textSize="14sp"
+            android:textColor="#388E3C"/>
+
+        <TextView
+            android:id="@+id/sentMessagesTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Mensajes enviados hoy: 0"
+            android:textSize="14sp"
+            android:textColor="#388E3C"
+            android:layout_marginTop="4dp"/>
+
+        <TextView
+            android:id="@+id/pendingConfirmationsTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Pendientes de confirmar: 0"
+            android:textSize="14sp"
+            android:textColor="#FF8F00"
+            android:layout_marginTop="4dp"/>
+
+    </LinearLayout>
+
+    <!-- SMS Configuration Card -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Delay entre mensajes (segundos)"
-        android:inputType="number"
-        android:layout_marginTop="8dp" />
+        android:orientation="vertical"
+        android:background="@drawable/card_pastel_orange"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cantidad de mensajes:"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#E65100" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/messageCountMinus"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="-"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:background="@drawable/stepper_button" />
+
+            <EditText
+                android:id="@+id/messageCount"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:inputType="number"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:background="@android:drawable/editbox_background"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/messageCountPlus"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="+"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:background="@drawable/stepper_button" />
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Demora entre mensajes (segundos):"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#E65100"
+            android:layout_marginTop="16dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/delayMinus"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="-"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:background="@drawable/stepper_button" />
+
+            <EditText
+                android:id="@+id/delayInput"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:inputType="number"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:background="@android:drawable/editbox_background"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/delayPlus"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="+"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:background="@drawable/stepper_button" />
+
+        </LinearLayout>
+
+    </LinearLayout>
 
     <TextView
         android:id="@+id/progressTextView"
@@ -53,49 +268,105 @@
 
     <Button
         android:id="@+id/sendButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
         android:text="Enviar SMS"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:background="@drawable/button_primary"
         android:layout_marginTop="16dp" />
 
     <Button
         android:id="@+id/checkBalanceButton"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
         android:text="Consultar Saldo"
-        android:layout_marginTop="24dp" />
-
-    <TextView
-        android:id="@+id/balanceTextView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
         android:textSize="16sp"
-        android:hint="Su saldo aparecerá aquí" />
+        android:background="@drawable/button_secondary"
+        android:layout_marginTop="12dp" />
 
-    <CheckBox
-        android:id="@+id/reminderCheckbox"
+    <!-- Balance Info Card -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Recordarme donar saldo el último día de cada mes"
-        android:layout_marginTop="24dp" />
+        android:orientation="vertical"
+        android:background="@drawable/card_pastel_green"
+        android:padding="16dp"
+        android:layout_marginTop="16dp">
 
-    <TextView
-        android:id="@+id/donationAmountTextView"
-        android:layout_width="wrap_content"
+        <TextView
+            android:id="@+id/balanceTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textColor="#2E7D32"
+            android:hint="Su saldo aparecerá aquí" />
+
+    </LinearLayout>
+
+    <!-- Reminder Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="18sp"
-        android:padding="8dp"
-        android:textColor="@android:color/black"
-        android:layout_marginTop="16dp"/>
+        android:orientation="vertical"
+        android:background="@drawable/card_pastel_purple"
+        android:padding="16dp"
+        android:layout_marginTop="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Recordarme:"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#6A1B9A"
+            android:layout_marginBottom="8dp" />
+
+        <CheckBox
+            android:id="@+id/reminder4DaysCheckbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="4 días antes de fin de mes"
+            android:textColor="#6A1B9A" />
+
+        <CheckBox
+            android:id="@+id/reminder3DaysCheckbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="3 días antes de fin de mes"
+            android:textColor="#6A1B9A" />
+
+        <CheckBox
+            android:id="@+id/reminderPenultimateCheckbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="El penúltimo día del mes"
+            android:textColor="#6A1B9A" />
+
+        <CheckBox
+            android:id="@+id/reminderLastDayCheckbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="El último día del mes"
+            android:textColor="#6A1B9A" />
+
+    </LinearLayout>
 
     <Button
         android:id="@+id/clearButton"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
         android:text="Limpiar Todo"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:background="@drawable/button_danger"
         android:layout_marginTop="24dp"
-        android:backgroundTint="@android:color/holo_red_light" />
+        android:layout_marginBottom="32dp" />
 
+        </LinearLayout>
+    </ScrollView>
 </LinearLayout>

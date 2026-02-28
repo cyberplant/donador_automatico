@@ -1,10 +1,13 @@
-name: Comprobar que funcione el build
+name: Build app
 
 on:
   push:
     branches-ignore: [ "main" ]
   pull_request:
-    branches-ignore: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -22,3 +25,29 @@ jobs:
 
     - name: Corremos tests
       run: chmod +x gradlew && ./gradlew check
+
+  build-debug:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup de JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Damos permisos al gradlew
+      run: chmod +x gradlew
+
+    - name: Compilamos debug APK
+      run: ./gradlew assembleDebug
+
+    - name: Subimos APK como artefacto
+      uses: actions/upload-artifact@v4
+      with:
+        name: DonadorAutomatico-debug-${{ github.sha }}
+        path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
