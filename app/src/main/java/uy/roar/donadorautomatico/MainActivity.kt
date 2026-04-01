@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
     private val REMINDER_LAST_DAY_KEY = "reminder_last_day"
     private val BALANCE_NUMBER = "226"
     private val LAST_MONTH_KEY = "last_month"
+    private val LAST_BALANCE_KEY = "last_balance"
     private val MAX_MESSAGES = 50
     private val DEFAULT_DELAY = 2
 
@@ -70,6 +71,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var sentMessagesTextView: TextView
     private lateinit var pendingConfirmationsTextView: TextView
+    private lateinit var manualConfirmButton: Button
+    private lateinit var historyButton: Button
     private lateinit var lastMonthDonationTextView: TextView
     private lateinit var totalDonationTextView: TextView
     private lateinit var todayDonationTextView: TextView
@@ -77,6 +80,7 @@ class MainActivity : AppCompatActivity() {
     private var sentThisSession = 0  // Messages sent this session
     private var confirmedThisSession = 0  // Confirmations received this session
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private var isVerifyingBalance = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,6 +94,8 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         sentMessagesTextView = findViewById(R.id.sentMessagesTextView)
         pendingConfirmationsTextView = findViewById(R.id.pendingConfirmationsTextView)
+        manualConfirmButton = findViewById(R.id.manualConfirmButton)
+        historyButton = findViewById(R.id.historyButton)
         lastMonthDonationTextView = findViewById(R.id.lastMonthDonationTextView)
         totalDonationTextView = findViewById(R.id.totalDonationTextView)
         todayDonationTextView = findViewById(R.id.todayDonationTextView)
@@ -189,6 +195,14 @@ class MainActivity : AppCompatActivity() {
 
         clearButton.setOnClickListener {
             clearEverything()
+        }
+
+        manualConfirmButton.setOnClickListener {
+            showManualConfirmationDialog()
+        }
+
+        historyButton.setOnClickListener {
+            showDonationHistory()
         }
 
         // Setup reminder checkbox listeners
@@ -416,14 +430,15 @@ class MainActivity : AppCompatActivity() {
             else -> 0xFFFF8F00.toInt() // Orange
         }
         pendingConfirmationsTextView.setTextColor(color)
+        manualConfirmButton.visibility = if (pending > 0) android.view.View.VISIBLE else android.view.View.GONE
     }
 
     private fun clearEverything() {
         // Show confirmation dialog
         val dialog = android.app.AlertDialog.Builder(this)
-        dialog.setTitle("Confirmar")
-        dialog.setMessage("¿Está seguro que desea limpiar todos los datos?")
-        dialog.setPositiveButton("Sí") { _, _ ->
+        dialog.setTitle("Reiniciar contadores de sesión")
+        dialog.setMessage("Esto reiniciará los contadores de mensajes enviados en esta sesión y limpiará el saldo mostrado.\n\n⚠️ El historial de donaciones NO se borrará.")
+        dialog.setPositiveButton("Sí, reiniciar") { _, _ ->
             // Clear response count
             val sharedPreferences = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
             sharedPreferences.edit().apply {
@@ -451,7 +466,7 @@ class MainActivity : AppCompatActivity() {
             // Hide progress UI
             showProgressUI(false)
             
-            Toast.makeText(this, "Campos limpiados (historial de donaciones preservado)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Contadores de sesión reiniciados (historial preservado)", Toast.LENGTH_SHORT).show()
         }
         dialog.setNegativeButton("No", null)
         dialog.show()
@@ -501,31 +516,31 @@ class MainActivity : AppCompatActivity() {
     private fun updateReminders(showToast: Boolean = false) {
         val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
         
-        // Cancel all existing reminders first
-        for (requestCode in 0..3) {
+        // Cancel all existing reminders (using daysBeforeEnd as requestCode: 0, 1, 3, 4)
+        for (requestCode in listOf(0, 1, 3, 4)) {
             val intent = Intent(this, ReminderReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
                 this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             alarmManager.cancel(pendingIntent)
         }
         
-        // Schedule reminders based on checkbox states
+        // Schedule reminders based on checkbox states (requestCode = daysBeforeEnd)
         val reminder4Days = sharedPreferences.getBoolean(REMINDER_4_DAYS_KEY, false)
         val reminder3Days = sharedPreferences.getBoolean(REMINDER_3_DAYS_KEY, false)
         val reminderPenultimate = sharedPreferences.getBoolean(REMINDER_PENULTIMATE_KEY, false)
         val reminderLastDay = sharedPreferences.getBoolean(REMINDER_LAST_DAY_KEY, false)
         
         if (reminder4Days) {
-            scheduleReminder(4, 0) // 4 days before end of month, request code 0
+            scheduleReminder(4, 4)
         }
         if (reminder3Days) {
-            scheduleReminder(3, 1) // 3 days before end of month, request code 1
+            scheduleReminder(3, 3)
         }
         if (reminderPenultimate) {
-            scheduleReminder(1, 2) // Penultimate day (1 day before last), request code 2
+            scheduleReminder(1, 1)
         }
         if (reminderLastDay) {
-            scheduleReminder(0, 3) // Last day of month, request code 3
+            scheduleReminder(0, 0)
         }
         
         val anyEnabled = reminder4Days || reminder3Days || reminderPenultimate || reminderLastDay
@@ -541,25 +556,30 @@ class MainActivity : AppCompatActivity() {
         val pendingIntent = PendingIntent.getBroadcast(
             this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-        // Calculate the target day
+        // Calculate the target day in the current month
         val calendar = Calendar.getInstance()
         val lastDayOfMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
         val targetDay = lastDayOfMonth - daysBeforeEnd
         
         calendar.set(Calendar.DAY_OF_MONTH, targetDay)
-        // Set time to 20:00 (8 PM)
         calendar.set(Calendar.HOUR_OF_DAY, 20)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
 
-        // If the time is already past, schedule for next month
+        // If the time already passed this month, schedule for next month
         if (calendar.timeInMillis <= System.currentTimeMillis()) {
             calendar.add(Calendar.MONTH, 1)
             val nextMonthLastDay = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
             calendar.set(Calendar.DAY_OF_MONTH, nextMonthLastDay - daysBeforeEnd)
         }
 
-        alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+        // Use setExactAndAllowWhileIdle to fire even in Doze mode (Android 6+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+        } else {
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+        }
     }
     
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -628,7 +648,11 @@ class MainActivity : AppCompatActivity() {
                 val pendingIntent = PendingIntent.getBroadcast(
                     context, daysBeforeEnd, newIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-                alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                } else {
+                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                }
             }
         }
     }
@@ -757,6 +781,34 @@ class MainActivity : AppCompatActivity() {
                 val balance = numericPart.toDouble()
                 val calculatedCount = (balance / 10).toInt()
                 val numericPartFinal = numericPart
+
+                // Save the current balance for future verification comparisons
+                val previousBalance = sharedPreferences.getFloat(LAST_BALANCE_KEY, -1f)
+                sharedPreferences.edit().putFloat(LAST_BALANCE_KEY, balance.toFloat()).apply()
+
+                // If in verification mode, compare with previous balance to detect donations
+                if (isVerifyingBalance) {
+                    isVerifyingBalance = false
+                    if (previousBalance >= 0f) {
+                        val diff = previousBalance - balance.toFloat()
+                        val donatedMessages = (diff / 10).toInt()
+                        runOnUiThread {
+                            if (diff > 0) {
+                                android.app.AlertDialog.Builder(this)
+                                    .setTitle("✅ Donaciones detectadas por saldo")
+                                    .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}$\nSaldo actual: ${"%.0f".format(balance)}$\n\nDiferencia: ${"%.0f".format(diff)}$ = $donatedMessages mensajes\n\n¿Confirmar estas donaciones en el historial?")
+                                    .setPositiveButton("Confirmar $donatedMessages mensajes") { _, _ ->
+                                        manuallyConfirmPending(donatedMessages)
+                                    }
+                                    .setNegativeButton("Cancelar", null)
+                                    .show()
+                            } else {
+                                Toast.makeText(this, "ℹ️ No se detectaron donaciones por diferencia de saldo", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        return
+                    }
+                }
                 
                 // Get already sent messages from database asynchronously
                 CoroutineScope(Dispatchers.IO).launch {
@@ -803,6 +855,94 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private fun showManualConfirmationDialog() {
+        val pending = (sentThisSession - confirmedThisSession).coerceAtLeast(0)
+        val hasLastBalance = sharedPreferences.getFloat(LAST_BALANCE_KEY, -1f) >= 0f
+
+        val dialog = android.app.AlertDialog.Builder(this)
+        dialog.setTitle("Confirmación manual")
+        dialog.setMessage("Hay $pending mensaje(s) pendientes de confirmar.\n\nPodés confirmarlos manualmente o verificar por diferencia de saldo.")
+
+        dialog.setPositiveButton("✅ Confirmar $pending donaciones") { _, _ ->
+            manuallyConfirmPending(pending)
+        }
+
+        dialog.setNeutralButton("📊 Verificar por saldo") { _, _ ->
+            startBalanceVerification()
+        }
+
+        dialog.setNegativeButton("Cancelar", null)
+
+        val alertDialog = dialog.create()
+        alertDialog.show()
+
+        // Disable "Verificar por saldo" if no previous balance is stored
+        alertDialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL)?.isEnabled = hasLastBalance
+        if (!hasLastBalance) {
+            alertDialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL)?.text = "📊 Verificar por saldo (sin saldo previo)"
+        }
+    }
+
+    private fun manuallyConfirmPending(count: Int) {
+        if (count <= 0) return
+        val amountPesos = count * 10
+        val today = dateFormat.format(Calendar.getInstance().time)
+        CoroutineScope(Dispatchers.IO).launch {
+            val existing = database.donationDao().getByDate(today)
+            if (existing != null) {
+                database.donationDao().addToDate(today, amountPesos)
+            } else {
+                database.donationDao().insertOrUpdate(
+                    uy.roar.donadorautomatico.data.DonationRecord(today, amountPesos)
+                )
+            }
+            withContext(Dispatchers.Main) {
+                confirmedThisSession += count
+                updatePendingConfirmations()
+                refreshDonationStats()
+                Toast.makeText(this@MainActivity, "✅ $count donación(es) confirmadas manualmente (+$${amountPesos})", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun startBalanceVerification() {
+        if (checkAndRequestPermissions()) {
+            isVerifyingBalance = true
+            sendBalanceCheck()
+            Toast.makeText(this, "📊 Consultando saldo para verificar donaciones...", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showDonationHistory() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val monthlyTotals = database.donationDao().getMonthlyTotals()
+            withContext(Dispatchers.Main) {
+                if (monthlyTotals.isEmpty()) {
+                    Toast.makeText(this@MainActivity, "No hay donaciones registradas aún", Toast.LENGTH_SHORT).show()
+                    return@withContext
+                }
+                val sb = StringBuilder()
+                for (entry in monthlyTotals) {
+                    sb.appendLine("${entry.month}  →  $${entry.total}")
+                }
+                val scrollView = android.widget.ScrollView(this@MainActivity)
+                val textView = TextView(this@MainActivity).apply {
+                    text = sb.toString().trimEnd()
+                    textSize = 15f
+                    setTextColor(0xFF2E7D32.toInt())
+                    typeface = android.graphics.Typeface.MONOSPACE
+                    setPadding(48, 24, 48, 24)
+                }
+                scrollView.addView(textView)
+                android.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle("📅 Historial de donaciones")
+                    .setView(scrollView)
+                    .setPositiveButton("Cerrar", null)
+                    .show()
             }
         }
     }
