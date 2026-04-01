@@ -8,7 +8,7 @@ import androidx.room.Query
 
 data class MonthlyTotal(
     @ColumnInfo(name = "month") val month: String,
-    @ColumnInfo(name = "total") val total: Int
+    @ColumnInfo(name = "total") val total: Long
 )
 
 @Dao

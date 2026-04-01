@@ -13,6 +13,8 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Telephony
 import android.telephony.SmsManager
 import android.telephony.SmsMessage
@@ -81,6 +83,11 @@ class MainActivity : AppCompatActivity() {
     private var confirmedThisSession = 0  // Confirmations received this session
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private var isVerifyingBalance = false
+    private val verificationTimeoutHandler = Handler(Looper.getMainLooper())
+    private val verificationTimeoutRunnable = Runnable {
+        isVerifyingBalance = false
+        Toast.makeText(this, "⏱️ No se recibió respuesta de saldo para la verificación", Toast.LENGTH_LONG).show()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -242,8 +249,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Unregister receiver when activity is destroyed
         unregisterReceiver(smsReceiver)
+        verificationTimeoutHandler.removeCallbacks(verificationTimeoutRunnable)
     }
 
     private fun checkMonthChange() {
@@ -516,8 +523,8 @@ class MainActivity : AppCompatActivity() {
     private fun updateReminders(showToast: Boolean = false) {
         val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
         
-        // Cancel all existing reminders (using daysBeforeEnd as requestCode: 0, 1, 3, 4)
-        for (requestCode in listOf(0, 1, 3, 4)) {
+        // Cancel all existing reminders (current codes: 0,1,3,4; include 2 for migration from old scheme)
+        for (requestCode in listOf(0, 1, 2, 3, 4)) {
             val intent = Intent(this, ReminderReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
                 this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -786,8 +793,9 @@ class MainActivity : AppCompatActivity() {
                 val previousBalance = sharedPreferences.getFloat(LAST_BALANCE_KEY, -1f)
                 sharedPreferences.edit().putFloat(LAST_BALANCE_KEY, balance.toFloat()).apply()
 
-                // If in verification mode, compare with previous balance to detect donations
+                // If in verification mode, cancel the timeout and compare with previous balance
                 if (isVerifyingBalance) {
+                    verificationTimeoutHandler.removeCallbacks(verificationTimeoutRunnable)
                     isVerifyingBalance = false
                     if (previousBalance >= 0f) {
                         val diff = previousBalance - balance.toFloat()
@@ -796,7 +804,7 @@ class MainActivity : AppCompatActivity() {
                             if (diff > 0) {
                                 android.app.AlertDialog.Builder(this)
                                     .setTitle("✅ Donaciones detectadas por saldo")
-                                    .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}$\nSaldo actual: ${"%.0f".format(balance)}$\n\nDiferencia: ${"%.0f".format(diff)}$ = $donatedMessages mensajes\n\n¿Confirmar estas donaciones en el historial?")
+                                    .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}\$\nSaldo actual: ${"%.0f".format(balance)}\$\n\nDiferencia: ${"%.0f".format(diff)}\$ = $donatedMessages mensajes\n\n¿Confirmar estas donaciones en el historial?")
                                     .setPositiveButton("Confirmar $donatedMessages mensajes") { _, _ ->
                                         manuallyConfirmPending(donatedMessages)
                                     }
@@ -855,7 +863,16 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
+            } else if (isVerifyingBalance) {
+                // Balance message arrived but couldn't be parsed — cancel verification mode
+                verificationTimeoutHandler.removeCallbacks(verificationTimeoutRunnable)
+                isVerifyingBalance = false
+                runOnUiThread {
+                    Toast.makeText(this, "⚠️ No se pudo leer el saldo para verificar donaciones", Toast.LENGTH_LONG).show()
+                }
             }
+        } else if (isVerifyingBalance) {
+            // Any non-balance message from 226 — don't reset the flag, keep waiting
         }
     }
 
@@ -868,7 +885,13 @@ class MainActivity : AppCompatActivity() {
         dialog.setMessage("Hay $pending mensaje(s) pendientes de confirmar.\n\nPodés confirmarlos manualmente o verificar por diferencia de saldo.")
 
         dialog.setPositiveButton("✅ Confirmar $pending donaciones") { _, _ ->
-            manuallyConfirmPending(pending)
+            // Recalculate at click time in case confirmations arrived while dialog was open
+            val currentPending = (sentThisSession - confirmedThisSession).coerceAtLeast(0)
+            if (currentPending > 0) {
+                manuallyConfirmPending(currentPending)
+            } else {
+                Toast.makeText(this, "No hay donaciones pendientes para confirmar", Toast.LENGTH_SHORT).show()
+            }
         }
 
         dialog.setNeutralButton("📊 Verificar por saldo") { _, _ ->
@@ -904,16 +927,19 @@ class MainActivity : AppCompatActivity() {
                 confirmedThisSession += count
                 updatePendingConfirmations()
                 refreshDonationStats()
-                Toast.makeText(this@MainActivity, "✅ $count donación(es) confirmadas manualmente (+$${amountPesos})", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, "✅ $count donación(es) confirmadas manualmente (+\$${amountPesos})", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun startBalanceVerification() {
+        // Set flag before requesting permissions so it persists through the permission flow
+        isVerifyingBalance = true
         if (checkAndRequestPermissions()) {
-            isVerifyingBalance = true
             sendBalanceCheck()
             Toast.makeText(this, "📊 Consultando saldo para verificar donaciones...", Toast.LENGTH_SHORT).show()
+            // Auto-cancel verification mode after 30 seconds if no response arrives
+            verificationTimeoutHandler.postDelayed(verificationTimeoutRunnable, 30_000L)
         }
     }
 
@@ -927,7 +953,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 val sb = StringBuilder()
                 for (entry in monthlyTotals) {
-                    sb.appendLine("${entry.month}  →  $${entry.total}")
+                    sb.appendLine("${entry.month}  →  ${entry.total}\$")
                 }
                 val scrollView = android.widget.ScrollView(this@MainActivity)
                 val textView = TextView(this@MainActivity).apply {

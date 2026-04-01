@@ -104,13 +104,14 @@
         <Button
             android:id="@+id/historyButton"
             android:layout_width="wrap_content"
-            android:layout_height="32dp"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
             android:text="📅 Ver historial"
             android:textSize="11sp"
             android:textColor="#2E7D32"
             android:background="@android:color/transparent"
-            android:paddingStart="0dp"
-            android:paddingEnd="0dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
             android:layout_marginTop="2dp"/>
 
         <View
@@ -156,13 +157,16 @@
             <Button
                 android:id="@+id/manualConfirmButton"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
                 android:text="✋ Confirmar"
                 android:textSize="11sp"
                 android:textColor="@android:color/white"
                 android:background="@drawable/button_secondary"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
                 android:visibility="gone"/>
 
         </LinearLayout>
