@@ -101,6 +101,18 @@
             android:textColor="#388E3C"
             android:layout_marginTop="4dp"/>
 
+        <Button
+            android:id="@+id/historyButton"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:text="📅 Ver historial"
+            android:textSize="11sp"
+            android:textColor="#2E7D32"
+            android:background="@android:color/transparent"
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+            android:layout_marginTop="2dp"/>
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
@@ -125,14 +137,35 @@
             android:textColor="#388E3C"
             android:layout_marginTop="4dp"/>
 
-        <TextView
-            android:id="@+id/pendingConfirmationsTextView"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Pendientes de confirmar: 0"
-            android:textSize="14sp"
-            android:textColor="#FF8F00"
-            android:layout_marginTop="4dp"/>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/pendingConfirmationsTextView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Pendientes de confirmar: 0"
+                android:textSize="14sp"
+                android:textColor="#FF8F00"/>
+
+            <Button
+                android:id="@+id/manualConfirmButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="✋ Confirmar"
+                android:textSize="11sp"
+                android:textColor="@android:color/white"
+                android:background="@drawable/button_secondary"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:visibility="gone"/>
+
+        </LinearLayout>
 
     </LinearLayout>
 
@@ -359,10 +392,10 @@
         android:id="@+id/clearButton"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="Limpiar Todo"
+        android:text="🔄 Reiniciar contadores de sesión"
         android:textColor="@android:color/white"
         android:textStyle="bold"
-        android:textSize="16sp"
+        android:textSize="14sp"
         android:background="@drawable/button_danger"
         android:layout_marginTop="24dp"
         android:layout_marginBottom="32dp" />

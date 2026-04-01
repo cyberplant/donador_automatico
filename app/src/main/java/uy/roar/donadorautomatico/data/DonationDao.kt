@@ -1,9 +1,15 @@
 package uy.roar.donadorautomatico.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+
+data class MonthlyTotal(
+    @ColumnInfo(name = "month") val month: String,
+    @ColumnInfo(name = "total") val total: Int
+)
 
 @Dao
 interface DonationDao {
@@ -25,4 +31,7 @@ interface DonationDao {
     
     @Query("UPDATE donation_records SET amount = amount + :amount WHERE date = :date")
     suspend fun addToDate(date: String, amount: Int): Int
+
+    @Query("SELECT substr(date, 1, 7) as month, SUM(amount) as total FROM donation_records GROUP BY substr(date, 1, 7) ORDER BY month DESC")
+    suspend fun getMonthlyTotals(): List<MonthlyTotal>
 }
