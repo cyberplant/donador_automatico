@@ -802,11 +802,15 @@ class MainActivity : AppCompatActivity() {
                         val donatedMessages = (diff / 10).toInt()
                         runOnUiThread {
                             if (diff > 0) {
+                                val pendingToConfirm = (donatedMessages - confirmedThisSession).coerceAtLeast(0)
+                                val alreadyConfirmedInfo = if (confirmedThisSession > 0)
+                                    "\nYa confirmados automáticamente: $confirmedThisSession mensajes\nA agregar ahora: $pendingToConfirm mensajes"
+                                else ""
                                 android.app.AlertDialog.Builder(this)
                                     .setTitle("✅ Donaciones detectadas por saldo")
-                                    .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}\$\nSaldo actual: ${"%.0f".format(balance)}\$\n\nDiferencia: ${"%.0f".format(diff)}\$ = $donatedMessages mensajes\n\n¿Confirmar estas donaciones en el historial?")
-                                    .setPositiveButton("Confirmar $donatedMessages mensajes") { _, _ ->
-                                        manuallyConfirmPending(donatedMessages)
+                                    .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}\$\nSaldo actual: ${"%.0f".format(balance)}\$\n\nDiferencia: ${"%.0f".format(diff)}\$ = $donatedMessages mensajes$alreadyConfirmedInfo\n\n¿Confirmar las donaciones pendientes en el historial?")
+                                    .setPositiveButton("Confirmar $pendingToConfirm mensajes") { _, _ ->
+                                        manuallyConfirmPending(pendingToConfirm)
                                     }
                                     .setNegativeButton("Cancelar", null)
                                     .show()
