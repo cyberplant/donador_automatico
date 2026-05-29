@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     private val LAST_BALANCE_KEY = "last_balance"
     private val CONFIRMED_AT_BASELINE_KEY = "confirmed_at_baseline"
     private val CONFIRMED_THIS_SESSION_KEY = "confirmed_this_session"
+    private val SENT_THIS_SESSION_KEY = "sent_this_session"
     private val MAX_MESSAGES = 50
     private val DEFAULT_DELAY = 2
 
@@ -156,6 +157,7 @@ class MainActivity : AppCompatActivity() {
         // Restore persisted baseline snapshot so it stays in sync with LAST_BALANCE_KEY across recreation
         confirmedAtBaselineSave = sharedPreferences.getInt(CONFIRMED_AT_BASELINE_KEY, 0)
         confirmedThisSession = sharedPreferences.getInt(CONFIRMED_THIS_SESSION_KEY, 0)
+        sentThisSession = sharedPreferences.getInt(SENT_THIS_SESSION_KEY, 0)
 
         // Check for month change and ask user if they want to reset counters
         checkMonthChange()
@@ -301,6 +303,7 @@ class MainActivity : AppCompatActivity() {
             .remove(LAST_BALANCE_KEY)
             .remove(CONFIRMED_AT_BASELINE_KEY)
             .putInt(CONFIRMED_THIS_SESSION_KEY, 0)
+            .putInt(SENT_THIS_SESSION_KEY, 0)
             .apply()
         refreshDonationStats()
         updatePendingConfirmations()
@@ -371,6 +374,7 @@ class MainActivity : AppCompatActivity() {
                 
                 // Increment BEFORE send attempt - counts as "attempted"
                 sentThisSession++
+                sharedPreferences.edit().putInt(SENT_THIS_SESSION_KEY, sentThisSession).apply()
                 updatePendingConfirmations()
                 refreshDonationStats()
                 
@@ -412,6 +416,7 @@ class MainActivity : AppCompatActivity() {
                 
                 // Increment BEFORE send attempt - counts as "attempted"
                 sentThisSession++
+                sharedPreferences.edit().putInt(SENT_THIS_SESSION_KEY, sentThisSession).apply()
                 updatePendingConfirmations()
                 refreshDonationStats()
                 
@@ -482,6 +487,7 @@ class MainActivity : AppCompatActivity() {
                 .remove(LAST_BALANCE_KEY)
                 .remove(CONFIRMED_AT_BASELINE_KEY)
                 .putInt(CONFIRMED_THIS_SESSION_KEY, 0)
+                .putInt(SENT_THIS_SESSION_KEY, 0)
                 .apply()
             updatePendingConfirmations()
             refreshDonationStats()
