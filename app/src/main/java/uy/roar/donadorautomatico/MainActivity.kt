@@ -290,7 +290,7 @@ class MainActivity : AppCompatActivity() {
         // Reset session counters
         sentThisSession = 0
         confirmedThisSession = 0
-        // Note: Database records are historical and not reset
+        confirmedAtBaselineSave = 0
         refreshDonationStats()
         updatePendingConfirmations()
         Toast.makeText(this, "Contadores reiniciados", Toast.LENGTH_SHORT).show()
@@ -466,9 +466,8 @@ class MainActivity : AppCompatActivity() {
             // Reset session counters
             sentThisSession = 0
             confirmedThisSession = 0
+            confirmedAtBaselineSave = 0
             updatePendingConfirmations()
-            
-            // Refresh donation stats from database
             refreshDonationStats()
             
             // Hide progress UI
@@ -815,6 +814,9 @@ class MainActivity : AppCompatActivity() {
                                     .setTitle("✅ Donaciones detectadas por saldo")
                                     .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}\$\nSaldo actual: ${"%.0f".format(balance)}\$\n\nDiferencia: ${"%.0f".format(diff)}\$ = $donatedMessages mensajes$alreadyConfirmedInfo\n\n¿Confirmar las donaciones pendientes en el historial?")
                                     .setPositiveButton("Confirmar $pendingToConfirm mensajes") { _, _ ->
+                                        // Advance baseline so the same diff isn't re-offered after restart
+                                        sharedPreferences.edit().putFloat(LAST_BALANCE_KEY, balance.toFloat()).apply()
+                                        confirmedAtBaselineSave = confirmedThisSession + pendingToConfirm
                                         manuallyConfirmPending(pendingToConfirm)
                                     }
                                     .setNegativeButton("Cancelar", null)
