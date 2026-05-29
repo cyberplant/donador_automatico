@@ -731,6 +731,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun addDonation(amount: Int) {
+        // Only record if there is an unconfirmed sent message to consume; otherwise this is a
+        // duplicate/late SMS for a donation already claimed by a manual confirmation.
+        if (confirmedThisSession >= sentThisSession) return
         val today = dateFormat.format(Calendar.getInstance().time)
         // Increment session confirmation counter and persist so it survives activity recreation
         confirmedThisSession++
