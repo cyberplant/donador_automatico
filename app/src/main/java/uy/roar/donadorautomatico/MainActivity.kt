@@ -52,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private val BALANCE_NUMBER = "226"
     private val LAST_MONTH_KEY = "last_month"
     private val LAST_BALANCE_KEY = "last_balance"
+    private val CONFIRMED_AT_BASELINE_KEY = "confirmed_at_baseline"
     private val MAX_MESSAGES = 50
     private val DEFAULT_DELAY = 2
 
@@ -150,6 +151,9 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize shared preferences
         sharedPreferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
+
+        // Restore persisted baseline snapshot so it stays in sync with LAST_BALANCE_KEY across recreation
+        confirmedAtBaselineSave = sharedPreferences.getInt(CONFIRMED_AT_BASELINE_KEY, 0)
 
         // Check for month change and ask user if they want to reset counters
         checkMonthChange()
@@ -291,6 +295,10 @@ class MainActivity : AppCompatActivity() {
         sentThisSession = 0
         confirmedThisSession = 0
         confirmedAtBaselineSave = 0
+        sharedPreferences.edit()
+            .remove(LAST_BALANCE_KEY)
+            .remove(CONFIRMED_AT_BASELINE_KEY)
+            .apply()
         refreshDonationStats()
         updatePendingConfirmations()
         Toast.makeText(this, "Contadores reiniciados", Toast.LENGTH_SHORT).show()
@@ -467,6 +475,10 @@ class MainActivity : AppCompatActivity() {
             sentThisSession = 0
             confirmedThisSession = 0
             confirmedAtBaselineSave = 0
+            sharedPreferences.edit()
+                .remove(LAST_BALANCE_KEY)
+                .remove(CONFIRMED_AT_BASELINE_KEY)
+                .apply()
             updatePendingConfirmations()
             refreshDonationStats()
             
@@ -792,7 +804,10 @@ class MainActivity : AppCompatActivity() {
                 // Save the current balance for future verification comparisons (only when establishing a new baseline, not during verification)
                 val previousBalance = sharedPreferences.getFloat(LAST_BALANCE_KEY, -1f)
                 if (!isVerifyingBalance) {
-                    sharedPreferences.edit().putFloat(LAST_BALANCE_KEY, balance.toFloat()).apply()
+                    sharedPreferences.edit()
+                        .putFloat(LAST_BALANCE_KEY, balance.toFloat())
+                        .putInt(CONFIRMED_AT_BASELINE_KEY, confirmedThisSession)
+                        .apply()
                     confirmedAtBaselineSave = confirmedThisSession
                 }
 
@@ -815,8 +830,12 @@ class MainActivity : AppCompatActivity() {
                                     .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}\$\nSaldo actual: ${"%.0f".format(balance)}\$\n\nDiferencia: ${"%.0f".format(diff)}\$ = $donatedMessages mensajes$alreadyConfirmedInfo\n\n¿Confirmar las donaciones pendientes en el historial?")
                                     .setPositiveButton("Confirmar $pendingToConfirm mensajes") { _, _ ->
                                         // Advance baseline so the same diff isn't re-offered after restart
-                                        sharedPreferences.edit().putFloat(LAST_BALANCE_KEY, balance.toFloat()).apply()
-                                        confirmedAtBaselineSave = confirmedThisSession + pendingToConfirm
+                                        val newBaseline = confirmedThisSession + pendingToConfirm
+                                        sharedPreferences.edit()
+                                            .putFloat(LAST_BALANCE_KEY, balance.toFloat())
+                                            .putInt(CONFIRMED_AT_BASELINE_KEY, newBaseline)
+                                            .apply()
+                                        confirmedAtBaselineSave = newBaseline
                                         manuallyConfirmPending(pendingToConfirm)
                                     }
                                     .setNegativeButton("Cancelar", null)
