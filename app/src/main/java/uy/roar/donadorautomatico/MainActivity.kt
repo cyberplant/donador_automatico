@@ -456,8 +456,8 @@ class MainActivity : AppCompatActivity() {
         dialog.setMessage("Esto reiniciará los contadores de mensajes enviados en esta sesión y limpiará el saldo mostrado.\n\n⚠️ El historial de donaciones NO se borrará.")
         dialog.setPositiveButton("Sí, reiniciar") { _, _ ->
             // Clear response count
-            val sharedPreferences = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
-            sharedPreferences.edit().apply {
+            val donationPrefs = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
+            donationPrefs.edit().apply {
                 putInt("response_count", 0)
                 apply()
             }
@@ -829,14 +829,15 @@ class MainActivity : AppCompatActivity() {
                                     .setTitle("✅ Donaciones detectadas por saldo")
                                     .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}\$\nSaldo actual: ${"%.0f".format(balance)}\$\n\nDiferencia: ${"%.0f".format(diff)}\$ = $donatedMessages mensajes$alreadyConfirmedInfo\n\n¿Confirmar las donaciones pendientes en el historial?")
                                     .setPositiveButton("Confirmar $pendingToConfirm mensajes") { _, _ ->
-                                        // Advance baseline so the same diff isn't re-offered after restart
-                                        val newBaseline = confirmedThisSession + pendingToConfirm
+                                        // Recalculate in case auto-confirmations arrived while dialog was open
+                                        val actualPending = (donatedMessages - (confirmedThisSession - confirmedAtBaselineSave)).coerceAtLeast(0)
+                                        val newBaseline = confirmedThisSession + actualPending
                                         sharedPreferences.edit()
                                             .putFloat(LAST_BALANCE_KEY, balance.toFloat())
                                             .putInt(CONFIRMED_AT_BASELINE_KEY, newBaseline)
                                             .apply()
                                         confirmedAtBaselineSave = newBaseline
-                                        manuallyConfirmPending(pendingToConfirm)
+                                        manuallyConfirmPending(actualPending)
                                     }
                                     .setNegativeButton("Cancelar", null)
                                     .show()
