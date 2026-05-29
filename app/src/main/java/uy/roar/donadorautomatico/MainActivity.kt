@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     private val LAST_MONTH_KEY = "last_month"
     private val LAST_BALANCE_KEY = "last_balance"
     private val CONFIRMED_AT_BASELINE_KEY = "confirmed_at_baseline"
+    private val CONFIRMED_THIS_SESSION_KEY = "confirmed_this_session"
     private val MAX_MESSAGES = 50
     private val DEFAULT_DELAY = 2
 
@@ -154,6 +155,7 @@ class MainActivity : AppCompatActivity() {
 
         // Restore persisted baseline snapshot so it stays in sync with LAST_BALANCE_KEY across recreation
         confirmedAtBaselineSave = sharedPreferences.getInt(CONFIRMED_AT_BASELINE_KEY, 0)
+        confirmedThisSession = sharedPreferences.getInt(CONFIRMED_THIS_SESSION_KEY, 0)
 
         // Check for month change and ask user if they want to reset counters
         checkMonthChange()
@@ -298,6 +300,7 @@ class MainActivity : AppCompatActivity() {
         sharedPreferences.edit()
             .remove(LAST_BALANCE_KEY)
             .remove(CONFIRMED_AT_BASELINE_KEY)
+            .putInt(CONFIRMED_THIS_SESSION_KEY, 0)
             .apply()
         refreshDonationStats()
         updatePendingConfirmations()
@@ -478,6 +481,7 @@ class MainActivity : AppCompatActivity() {
             sharedPreferences.edit()
                 .remove(LAST_BALANCE_KEY)
                 .remove(CONFIRMED_AT_BASELINE_KEY)
+                .putInt(CONFIRMED_THIS_SESSION_KEY, 0)
                 .apply()
             updatePendingConfirmations()
             refreshDonationStats()
@@ -722,8 +726,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun addDonation(amount: Int) {
         val today = dateFormat.format(Calendar.getInstance().time)
-        // Increment session confirmation counter
+        // Increment session confirmation counter and persist so it survives activity recreation
         confirmedThisSession++
+        sharedPreferences.edit().putInt(CONFIRMED_THIS_SESSION_KEY, confirmedThisSession).apply()
         updatePendingConfirmations()
         
         CoroutineScope(Dispatchers.IO).launch {
@@ -842,6 +847,12 @@ class MainActivity : AppCompatActivity() {
                                     .setNegativeButton("Cancelar", null)
                                     .show()
                             } else {
+                                // No positive diff: advance baseline to current balance so future verifications start fresh
+                                sharedPreferences.edit()
+                                    .putFloat(LAST_BALANCE_KEY, balance.toFloat())
+                                    .putInt(CONFIRMED_AT_BASELINE_KEY, confirmedThisSession)
+                                    .apply()
+                                confirmedAtBaselineSave = confirmedThisSession
                                 Toast.makeText(this, "ℹ️ No se detectaron donaciones por diferencia de saldo", Toast.LENGTH_LONG).show()
                             }
                         }
@@ -956,6 +967,7 @@ class MainActivity : AppCompatActivity() {
             }
             withContext(Dispatchers.Main) {
                 confirmedThisSession += count
+                sharedPreferences.edit().putInt(CONFIRMED_THIS_SESSION_KEY, confirmedThisSession).apply()
                 updatePendingConfirmations()
                 refreshDonationStats()
                 Toast.makeText(this@MainActivity, "✅ $count donación(es) confirmadas manualmente (+\$${amountPesos})", Toast.LENGTH_SHORT).show()
