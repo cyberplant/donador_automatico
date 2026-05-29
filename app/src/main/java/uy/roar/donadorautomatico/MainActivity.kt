@@ -55,7 +55,6 @@ class MainActivity : AppCompatActivity() {
     private val CONFIRMED_AT_BASELINE_KEY = "confirmed_at_baseline"
     private val CONFIRMED_THIS_SESSION_KEY = "confirmed_this_session"
     private val SENT_THIS_SESSION_KEY = "sent_this_session"
-    private val MANUALLY_CLAIMED_KEY = "manually_claimed"
     private val MAX_MESSAGES = 50
     private val DEFAULT_DELAY = 2
 
@@ -86,7 +85,6 @@ class MainActivity : AppCompatActivity() {
     private var sentThisSession = 0  // Messages sent this session
     private var confirmedThisSession = 0  // Confirmations received this session
     private var confirmedAtBaselineSave = 0  // Snapshot of confirmedThisSession when baseline balance was saved
-    private var manuallyClaimedCount = 0  // Pending slots reserved by manual confirmation, to discard matching late auto-SMSs
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private var isVerifyingBalance = false
     private val verificationTimeoutHandler = Handler(Looper.getMainLooper())
@@ -160,7 +158,6 @@ class MainActivity : AppCompatActivity() {
         confirmedAtBaselineSave = sharedPreferences.getInt(CONFIRMED_AT_BASELINE_KEY, 0)
         confirmedThisSession = sharedPreferences.getInt(CONFIRMED_THIS_SESSION_KEY, 0)
         sentThisSession = sharedPreferences.getInt(SENT_THIS_SESSION_KEY, 0)
-        manuallyClaimedCount = sharedPreferences.getInt(MANUALLY_CLAIMED_KEY, 0)
 
         // Check for month change and ask user if they want to reset counters
         checkMonthChange()
@@ -302,13 +299,11 @@ class MainActivity : AppCompatActivity() {
         sentThisSession = 0
         confirmedThisSession = 0
         confirmedAtBaselineSave = 0
-        manuallyClaimedCount = 0
         sharedPreferences.edit()
             .remove(LAST_BALANCE_KEY)
             .remove(CONFIRMED_AT_BASELINE_KEY)
             .putInt(CONFIRMED_THIS_SESSION_KEY, 0)
             .putInt(SENT_THIS_SESSION_KEY, 0)
-            .putInt(MANUALLY_CLAIMED_KEY, 0)
             .apply()
         refreshDonationStats()
         updatePendingConfirmations()
@@ -488,13 +483,11 @@ class MainActivity : AppCompatActivity() {
             sentThisSession = 0
             confirmedThisSession = 0
             confirmedAtBaselineSave = 0
-            manuallyClaimedCount = 0
             sharedPreferences.edit()
                 .remove(LAST_BALANCE_KEY)
                 .remove(CONFIRMED_AT_BASELINE_KEY)
                 .putInt(CONFIRMED_THIS_SESSION_KEY, 0)
                 .putInt(SENT_THIS_SESSION_KEY, 0)
-                .putInt(MANUALLY_CLAIMED_KEY, 0)
                 .apply()
             updatePendingConfirmations()
             refreshDonationStats()
@@ -738,15 +731,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun addDonation(amount: Int) {
-        // If there are pending manual claims, this is a late auto-SMS for a batch already manually
-        // confirmed. Consume the claim and skip the DB write to avoid double-counting.
-        if (manuallyClaimedCount > 0) {
-            manuallyClaimedCount--
-            sharedPreferences.edit().putInt(MANUALLY_CLAIMED_KEY, manuallyClaimedCount).apply()
-            // confirmedThisSession was already pre-incremented by manuallyConfirmPending; no further action needed.
-            updatePendingConfirmations()
-            return
-        }
+        // NOTE: Late auto-confirmation SMSs that arrive after a manual confirmation of the same
+        // donation will be recorded again here. Preventing this reliably requires per-message
+        // tracking (unique IDs per SMS), which the carrier does not provide. This is a known
+        // limitation; the balance-verification fix (confirmedSinceBaseline) already prevents the
+        // primary double-count from the verification flow itself.
         val today = dateFormat.format(Calendar.getInstance().time)
         // Increment session confirmation counter and persist so it survives activity recreation
         confirmedThisSession++
@@ -976,13 +965,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun manuallyConfirmPending(count: Int) {
         if (count <= 0) return
-        // Claim the pending count synchronously: pre-increment confirmedThisSession and register
-        // manual claims so that matching late auto-confirmation SMSs are discarded by addDonation().
+        // Claim the pending count synchronously on the Main thread before the async DB write,
+        // so an automatic confirmation SMS arriving in the interim cannot cause double-counting.
         confirmedThisSession += count
-        manuallyClaimedCount += count
         sharedPreferences.edit()
             .putInt(CONFIRMED_THIS_SESSION_KEY, confirmedThisSession)
-            .putInt(MANUALLY_CLAIMED_KEY, manuallyClaimedCount)
             .apply()
         updatePendingConfirmations()
         val amountPesos = count * 10
