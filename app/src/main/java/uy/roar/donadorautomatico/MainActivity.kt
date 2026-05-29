@@ -81,6 +81,7 @@ class MainActivity : AppCompatActivity() {
     private val database by lazy { DonationDatabase.getDatabase(this) }
     private var sentThisSession = 0  // Messages sent this session
     private var confirmedThisSession = 0  // Confirmations received this session
+    private var confirmedAtBaselineSave = 0  // Snapshot of confirmedThisSession when baseline balance was saved
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private var isVerifyingBalance = false
     private val verificationTimeoutHandler = Handler(Looper.getMainLooper())
@@ -789,9 +790,12 @@ class MainActivity : AppCompatActivity() {
                 val calculatedCount = (balance / 10).toInt()
                 val numericPartFinal = numericPart
 
-                // Save the current balance for future verification comparisons
+                // Save the current balance for future verification comparisons (only when establishing a new baseline, not during verification)
                 val previousBalance = sharedPreferences.getFloat(LAST_BALANCE_KEY, -1f)
-                sharedPreferences.edit().putFloat(LAST_BALANCE_KEY, balance.toFloat()).apply()
+                if (!isVerifyingBalance) {
+                    sharedPreferences.edit().putFloat(LAST_BALANCE_KEY, balance.toFloat()).apply()
+                    confirmedAtBaselineSave = confirmedThisSession
+                }
 
                 // If in verification mode, cancel the timeout and compare with previous balance
                 if (isVerifyingBalance) {
@@ -802,9 +806,10 @@ class MainActivity : AppCompatActivity() {
                         val donatedMessages = (diff / 10).toInt()
                         runOnUiThread {
                             if (diff > 0) {
-                                val pendingToConfirm = (donatedMessages - confirmedThisSession).coerceAtLeast(0)
-                                val alreadyConfirmedInfo = if (confirmedThisSession > 0)
-                                    "\nYa confirmados automáticamente: $confirmedThisSession mensajes\nA agregar ahora: $pendingToConfirm mensajes"
+                                val confirmedSinceBaseline = confirmedThisSession - confirmedAtBaselineSave
+                                val pendingToConfirm = (donatedMessages - confirmedSinceBaseline).coerceAtLeast(0)
+                                val alreadyConfirmedInfo = if (confirmedSinceBaseline > 0)
+                                    "\nYa confirmados automáticamente: $confirmedSinceBaseline mensajes\nA agregar ahora: $pendingToConfirm mensajes"
                                 else ""
                                 android.app.AlertDialog.Builder(this)
                                     .setTitle("✅ Donaciones detectadas por saldo")
