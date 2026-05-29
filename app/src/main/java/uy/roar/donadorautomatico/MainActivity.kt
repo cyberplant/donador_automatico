@@ -52,6 +52,9 @@ class MainActivity : AppCompatActivity() {
     private val BALANCE_NUMBER = "226"
     private val LAST_MONTH_KEY = "last_month"
     private val LAST_BALANCE_KEY = "last_balance"
+    private val CONFIRMED_AT_BASELINE_KEY = "confirmed_at_baseline"
+    private val CONFIRMED_THIS_SESSION_KEY = "confirmed_this_session"
+    private val SENT_THIS_SESSION_KEY = "sent_this_session"
     private val MAX_MESSAGES = 50
     private val DEFAULT_DELAY = 2
 
@@ -81,6 +84,7 @@ class MainActivity : AppCompatActivity() {
     private val database by lazy { DonationDatabase.getDatabase(this) }
     private var sentThisSession = 0  // Messages sent this session
     private var confirmedThisSession = 0  // Confirmations received this session
+    private var confirmedAtBaselineSave = 0  // Snapshot of confirmedThisSession when baseline balance was saved
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private var isVerifyingBalance = false
     private val verificationTimeoutHandler = Handler(Looper.getMainLooper())
@@ -149,6 +153,11 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize shared preferences
         sharedPreferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
+
+        // Restore persisted baseline snapshot so it stays in sync with LAST_BALANCE_KEY across recreation
+        confirmedAtBaselineSave = sharedPreferences.getInt(CONFIRMED_AT_BASELINE_KEY, 0)
+        confirmedThisSession = sharedPreferences.getInt(CONFIRMED_THIS_SESSION_KEY, 0)
+        sentThisSession = sharedPreferences.getInt(SENT_THIS_SESSION_KEY, 0)
 
         // Check for month change and ask user if they want to reset counters
         checkMonthChange()
@@ -289,7 +298,13 @@ class MainActivity : AppCompatActivity() {
         // Reset session counters
         sentThisSession = 0
         confirmedThisSession = 0
-        // Note: Database records are historical and not reset
+        confirmedAtBaselineSave = 0
+        sharedPreferences.edit()
+            .remove(LAST_BALANCE_KEY)
+            .remove(CONFIRMED_AT_BASELINE_KEY)
+            .putInt(CONFIRMED_THIS_SESSION_KEY, 0)
+            .putInt(SENT_THIS_SESSION_KEY, 0)
+            .apply()
         refreshDonationStats()
         updatePendingConfirmations()
         Toast.makeText(this, "Contadores reiniciados", Toast.LENGTH_SHORT).show()
@@ -359,6 +374,7 @@ class MainActivity : AppCompatActivity() {
                 
                 // Increment BEFORE send attempt - counts as "attempted"
                 sentThisSession++
+                sharedPreferences.edit().putInt(SENT_THIS_SESSION_KEY, sentThisSession).apply()
                 updatePendingConfirmations()
                 refreshDonationStats()
                 
@@ -400,6 +416,7 @@ class MainActivity : AppCompatActivity() {
                 
                 // Increment BEFORE send attempt - counts as "attempted"
                 sentThisSession++
+                sharedPreferences.edit().putInt(SENT_THIS_SESSION_KEY, sentThisSession).apply()
                 updatePendingConfirmations()
                 refreshDonationStats()
                 
@@ -447,8 +464,8 @@ class MainActivity : AppCompatActivity() {
         dialog.setMessage("Esto reiniciará los contadores de mensajes enviados en esta sesión y limpiará el saldo mostrado.\n\n⚠️ El historial de donaciones NO se borrará.")
         dialog.setPositiveButton("Sí, reiniciar") { _, _ ->
             // Clear response count
-            val sharedPreferences = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
-            sharedPreferences.edit().apply {
+            val donationPrefs = getSharedPreferences("donation_prefs", Context.MODE_PRIVATE)
+            donationPrefs.edit().apply {
                 putInt("response_count", 0)
                 apply()
             }
@@ -465,9 +482,14 @@ class MainActivity : AppCompatActivity() {
             // Reset session counters
             sentThisSession = 0
             confirmedThisSession = 0
+            confirmedAtBaselineSave = 0
+            sharedPreferences.edit()
+                .remove(LAST_BALANCE_KEY)
+                .remove(CONFIRMED_AT_BASELINE_KEY)
+                .putInt(CONFIRMED_THIS_SESSION_KEY, 0)
+                .putInt(SENT_THIS_SESSION_KEY, 0)
+                .apply()
             updatePendingConfirmations()
-            
-            // Refresh donation stats from database
             refreshDonationStats()
             
             // Hide progress UI
@@ -709,9 +731,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun addDonation(amount: Int) {
+        // NOTE: Late auto-confirmation SMSs that arrive after a manual confirmation of the same
+        // donation will be recorded again here. Preventing this reliably requires per-message
+        // tracking (unique IDs per SMS), which the carrier does not provide. This is a known
+        // limitation; the balance-verification fix (confirmedSinceBaseline) already prevents the
+        // primary double-count from the verification flow itself.
         val today = dateFormat.format(Calendar.getInstance().time)
-        // Increment session confirmation counter
+        // Increment session confirmation counter and persist so it survives activity recreation
         confirmedThisSession++
+        sharedPreferences.edit().putInt(CONFIRMED_THIS_SESSION_KEY, confirmedThisSession).apply()
         updatePendingConfirmations()
         
         CoroutineScope(Dispatchers.IO).launch {
@@ -789,9 +817,15 @@ class MainActivity : AppCompatActivity() {
                 val calculatedCount = (balance / 10).toInt()
                 val numericPartFinal = numericPart
 
-                // Save the current balance for future verification comparisons
+                // Save the current balance for future verification comparisons (only when establishing a new baseline, not during verification)
                 val previousBalance = sharedPreferences.getFloat(LAST_BALANCE_KEY, -1f)
-                sharedPreferences.edit().putFloat(LAST_BALANCE_KEY, balance.toFloat()).apply()
+                if (!isVerifyingBalance) {
+                    sharedPreferences.edit()
+                        .putFloat(LAST_BALANCE_KEY, balance.toFloat())
+                        .putInt(CONFIRMED_AT_BASELINE_KEY, confirmedThisSession)
+                        .apply()
+                    confirmedAtBaselineSave = confirmedThisSession
+                }
 
                 // If in verification mode, cancel the timeout and compare with previous balance
                 if (isVerifyingBalance) {
@@ -802,15 +836,34 @@ class MainActivity : AppCompatActivity() {
                         val donatedMessages = (diff / 10).toInt()
                         runOnUiThread {
                             if (diff > 0) {
+                                val confirmedSinceBaseline = confirmedThisSession - confirmedAtBaselineSave
+                                val pendingToConfirm = (donatedMessages - confirmedSinceBaseline).coerceAtLeast(0)
+                                val alreadyConfirmedInfo = if (confirmedSinceBaseline > 0)
+                                    "\nYa confirmados automáticamente: $confirmedSinceBaseline mensajes\nA agregar ahora: $pendingToConfirm mensajes"
+                                else ""
                                 android.app.AlertDialog.Builder(this)
                                     .setTitle("✅ Donaciones detectadas por saldo")
-                                    .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}\$\nSaldo actual: ${"%.0f".format(balance)}\$\n\nDiferencia: ${"%.0f".format(diff)}\$ = $donatedMessages mensajes\n\n¿Confirmar estas donaciones en el historial?")
-                                    .setPositiveButton("Confirmar $donatedMessages mensajes") { _, _ ->
-                                        manuallyConfirmPending(donatedMessages)
+                                    .setMessage("Saldo anterior: ${"%.0f".format(previousBalance)}\$\nSaldo actual: ${"%.0f".format(balance)}\$\n\nDiferencia: ${"%.0f".format(diff)}\$ = $donatedMessages mensajes$alreadyConfirmedInfo\n\n¿Confirmar las donaciones pendientes en el historial?")
+                                    .setPositiveButton("Confirmar $pendingToConfirm mensajes") { _, _ ->
+                                        // Recalculate in case auto-confirmations arrived while dialog was open
+                                        val actualPending = (donatedMessages - (confirmedThisSession - confirmedAtBaselineSave)).coerceAtLeast(0)
+                                        val newBaseline = confirmedThisSession + actualPending
+                                        sharedPreferences.edit()
+                                            .putFloat(LAST_BALANCE_KEY, balance.toFloat())
+                                            .putInt(CONFIRMED_AT_BASELINE_KEY, newBaseline)
+                                            .apply()
+                                        confirmedAtBaselineSave = newBaseline
+                                        manuallyConfirmPending(actualPending)
                                     }
                                     .setNegativeButton("Cancelar", null)
                                     .show()
                             } else {
+                                // No positive diff: advance baseline to current balance so future verifications start fresh
+                                sharedPreferences.edit()
+                                    .putFloat(LAST_BALANCE_KEY, balance.toFloat())
+                                    .putInt(CONFIRMED_AT_BASELINE_KEY, confirmedThisSession)
+                                    .apply()
+                                confirmedAtBaselineSave = confirmedThisSession
                                 Toast.makeText(this, "ℹ️ No se detectaron donaciones por diferencia de saldo", Toast.LENGTH_LONG).show()
                             }
                         }
@@ -912,6 +965,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun manuallyConfirmPending(count: Int) {
         if (count <= 0) return
+        // Claim the pending count synchronously on the Main thread before the async DB write,
+        // so an automatic confirmation SMS arriving in the interim cannot cause double-counting.
+        confirmedThisSession += count
+        sharedPreferences.edit()
+            .putInt(CONFIRMED_THIS_SESSION_KEY, confirmedThisSession)
+            .apply()
+        updatePendingConfirmations()
         val amountPesos = count * 10
         val today = dateFormat.format(Calendar.getInstance().time)
         CoroutineScope(Dispatchers.IO).launch {
@@ -924,8 +984,6 @@ class MainActivity : AppCompatActivity() {
                 )
             }
             withContext(Dispatchers.Main) {
-                confirmedThisSession += count
-                updatePendingConfirmations()
                 refreshDonationStats()
                 Toast.makeText(this@MainActivity, "✅ $count donación(es) confirmadas manualmente (+\$${amountPesos})", Toast.LENGTH_SHORT).show()
             }
