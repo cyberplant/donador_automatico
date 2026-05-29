@@ -960,6 +960,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun manuallyConfirmPending(count: Int) {
         if (count <= 0) return
+        // Claim the pending count synchronously on the Main thread before the async DB write,
+        // so an automatic confirmation SMS arriving in the interim cannot cause double-counting.
+        confirmedThisSession += count
+        sharedPreferences.edit().putInt(CONFIRMED_THIS_SESSION_KEY, confirmedThisSession).apply()
+        updatePendingConfirmations()
         val amountPesos = count * 10
         val today = dateFormat.format(Calendar.getInstance().time)
         CoroutineScope(Dispatchers.IO).launch {
@@ -972,9 +977,6 @@ class MainActivity : AppCompatActivity() {
                 )
             }
             withContext(Dispatchers.Main) {
-                confirmedThisSession += count
-                sharedPreferences.edit().putInt(CONFIRMED_THIS_SESSION_KEY, confirmedThisSession).apply()
-                updatePendingConfirmations()
                 refreshDonationStats()
                 Toast.makeText(this@MainActivity, "✅ $count donación(es) confirmadas manualmente (+\$${amountPesos})", Toast.LENGTH_SHORT).show()
             }
